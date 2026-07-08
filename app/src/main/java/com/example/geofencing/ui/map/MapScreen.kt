@@ -10,9 +10,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -37,6 +40,9 @@ import com.example.geofencing.R
 import com.example.geofencing.ui.map.slidepanel.SlidePanelHeader
 import com.example.geofencing.ui.map.slidepanel.StateTabRow
 import com.example.geofencing.ui.map.slidepanel.SlidePanelTab
+import com.example.geofencing.ui.map.slidepanel.sector.SectorDetailCard
+import com.example.geofencing.ui.map.slidepanel.sector.SectorListItemCard
+import com.example.geofencing.ui.map.slidepanel.sector.SectorPageIndicator
 import com.example.geofencing.ui.map.slidepanel.summary.AllCartSummaryRow
 import com.example.geofencing.ui.map.slidepanel.summary.DrivingStatusCard
 import com.example.geofencing.ui.map.slidepanel.summary.EventCodeSection
@@ -50,6 +56,32 @@ import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.rememberCameraPositionState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+
+// TODO: domain/repository 확정 전까지 Sector 캐러셀 상수로 채움.
+private data class SectorDummy(
+    val name: String,
+    val address: String,
+    val allCartCount: Int,
+    val violationCount: Int,
+    val complianceCount: Int
+)
+
+private val sectorDummyList = listOf(
+    SectorDummy(
+        name = "Sector #1",
+        address = "1776 Terminal Dr, Richland, WA 99354",
+        allCartCount = 16,
+        violationCount = 4,
+        complianceCount = 47
+    ),
+    SectorDummy(
+        name = "Sector #2",
+        address = "1776 Terminal Dr, Richland, WA 99354",
+        allCartCount = 16,
+        violationCount = 0,
+        complianceCount = 47
+    )
+)
 
 // z-order: 1) Map(최하단) 2) slidePanel(직접 구현한 드래그 시트) 3) 검색창(최상단)
 // slidePanel은 M3 BottomSheetScaffold(peek/expanded 2단 스냅) 대신 직접 만든 시트.
@@ -75,11 +107,29 @@ fun MapScreen(
     val mapProperties = remember {
         MapProperties(mapStyleOptions = MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style_dark))
     }
+    val sectorPagerState = rememberPagerState(pageCount = { sectorDummyList.size })
 
     val density = LocalDensity.current
     val screenHeightPx = with(density) { LocalConfiguration.current.screenHeightDp.dp.toPx() }
-    val peekHeightPx = with(density) { 120.dp.toPx() }
+    // Summary는 접힌 기본 상태에서도 "All Cart 50 / Violation 3 Unit >" 구간까지 보여야 함.
+    // 헤더(50+24+8+19.6+32=133.6) + StateTabRow(48) + AllCartSummaryRow(24+54+22=100)
+    // = 281.6dp를 반올림한 값 - 레이아웃 값이 바뀌면 같이 조정 필요.
+    val summaryPeekHeightPx = with(density) { 282.dp.toPx() }
+    // Sector는 접힌 기본 상태에서도 캐러셀 카드+네비게이션 circle까지 보여야 해서 Summary보다
+    // peek 높이가 크다. 헤더(50+24+8+19.6+32=133.6) + StateTabRow(48) + 카드(16+154=170) +
+    // 인디케이터(14+8=22) = 373.6dp를 반올림한 값 - 레이아웃 값이 바뀌면 같이 조정 필요.
+    val sectorPeekHeightPx = with(density) { 374.dp.toPx() }
+    val peekHeightPx = when (selectedTab) {
+        SlidePanelTab.SUMMARY -> summaryPeekHeightPx
+        SlidePanelTab.SECTOR -> sectorPeekHeightPx
+        SlidePanelTab.CART -> summaryPeekHeightPx
+    }
     var sheetHeightPx by remember { mutableFloatStateOf(peekHeightPx) }
+
+    // 탭이 바뀌면 그 탭의 기본(peek) 높이로 스냅 - Sector는 카드+인디케이터가 기본으로 보여야 함.
+    LaunchedEffect(selectedTab) {
+        sheetHeightPx = peekHeightPx
+    }
 
     val nestedScrollConnection = remember(peekHeightPx, screenHeightPx) {
         object : NestedScrollConnection {
@@ -126,17 +176,23 @@ fun MapScreen(
                 .fillMaxWidth()
                 .height(with(density) { sheetHeightPx.toDp() })
                 .background(
-                    // CSS: linear-gradient(0deg, #000 85.76%, transparent 100.65%) - 0deg는
-                    // 아래→위 기준이라 하단 85.76%는 완전 검정, 상단 ~14%만 빠르게 투명으로
-                    // 빠짐. Compose는 위(0)→아래(1) 기준이라 1 - 0.8576 = 0.1424로 변환.
+                    // CSS: linear-gradient(0deg, #000 85.76%, transparent 100.65%)
+                    // CSS 아래→위 기준: 하단 85.76%는 #000, 상단 ~14%만 빠르게 투명으로 빠짐.
+                    // Compose 위(0)→아래(1) 기준: 1 - 0.8576 = 0.1424로 변환.
+                    // %는 시트가 완전히 펼쳐졌을 때(화면 전체 높이) 기준이라, endY를 현재
+                    // 드래그된 sheetHeightPx가 아니라 screenHeightPx로 고정해야 시트 높이가
+                    // 바뀌어도(peek든 확장이든) 상단 페이드 구간의 절대 크기가 항상 동일하다.
                     Brush.verticalGradient(
                         colorStops = arrayOf(
                             0f to Color.Transparent,
                             0.1424f to Color.Black,
                             1f to Color.Black
-                        )
+                        ),
+                        startY = 0f,
+                        endY = screenHeightPx
                     )
                 )
+                .hazeSource(state = hazeState, zIndex = 1f)
                 .nestedScroll(nestedScrollConnection)
         ) {
             Box(
@@ -151,22 +207,27 @@ fun MapScreen(
             ) {
                 SlidePanelHeader(title = "Whole Sector", subtitle = "All Sector 16")
             }
-            StateTabRow(
-                selectedTab = selectedTab,
-                onTabSelected = { selectedTab = it },
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
+            // State 탭(Summary/Sector/Cart)은 상단 고정이 아니라 리스트와 같이 스크롤된다.
             LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                item {
+                    StateTabRow(
+                        selectedTab = selectedTab,
+                        onTabSelected = { selectedTab = it },
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
                 when (selectedTab) {
                     SlidePanelTab.SUMMARY -> {
                         item {
-                            AllCartSummaryRow(modifier = Modifier.padding(vertical = 16.dp))
+                            // 위(StateTabRow)와 24dp, 아래(새로고침)와 22dp 실측값.
+                            AllCartSummaryRow(modifier = Modifier.padding(top = 24.dp, bottom = 22.dp))
                         }
                         item {
                             RefreshStatusRow()
                         }
                         item {
-                            EventCodeSection(modifier = Modifier.padding(top = 16.dp))
+                            // 새로고침과의 간격 12dp 실측값.
+                            EventCodeSection(modifier = Modifier.padding(top = 12.dp))
                         }
                         item {
                             DrivingStatusCard(modifier = Modifier.padding(top = 16.dp))
@@ -176,11 +237,42 @@ fun MapScreen(
                         }
                     }
                     SlidePanelTab.SECTOR -> {
-                        items(slidePanelPlaceholderItems) { item ->
-                            Text(
-                                text = item,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(16.dp)
+                        item {
+                            HorizontalPager(
+                                state = sectorPagerState,
+                                modifier = Modifier
+                                    .padding(top = 16.dp)
+                                    .height(154.dp)
+                            ) { page ->
+                                val sector = sectorDummyList[page]
+                                SectorDetailCard(
+                                    name = sector.name,
+                                    address = sector.address,
+                                    allCartCount = sector.allCartCount,
+                                    violationCount = sector.violationCount,
+                                    complianceCount = sector.complianceCount
+                                )
+                            }
+                        }
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 14.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                SectorPageIndicator(
+                                    pageCount = sectorDummyList.size,
+                                    currentPage = sectorPagerState.currentPage
+                                )
+                            }
+                        }
+                        // 카드를 item list 형식으로 나타낼 때 간격은 항상 16dp
+                        items(sectorDummyList) { sector ->
+                            SectorListItemCard(
+                                name = sector.name,
+                                hasViolation = sector.violationCount > 0,
+                                modifier = Modifier.padding(top = 16.dp)
                             )
                         }
                     }
@@ -206,5 +298,3 @@ fun MapScreen(
         )
     }
 }
-
-private val slidePanelPlaceholderItems = listOf("설명 항목 1", "설명 항목 2", "설명 항목 3")

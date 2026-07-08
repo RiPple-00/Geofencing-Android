@@ -24,8 +24,9 @@ fun SlidePanelHeader(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.Top),
+            // 상단 50dp(패널 최상단과의 간격), 하단 32dp(다음 StateTabRow와의 간격) 실측값.
+            .padding(start = 16.dp, top = 50.dp, end = 16.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.Top),
         horizontalAlignment = Alignment.Start
     ) {
         Text(text = title, style = Header20, color = DarkTextPrimary)

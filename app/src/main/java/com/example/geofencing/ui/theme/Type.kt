@@ -103,6 +103,18 @@ val Body10 = TextStyle(
     lineHeightStyle = CenteredLineHeight
 )
 
+// 이름 없이 리터럴로 온 스타일(fontSize 12/lineHeight 21.6/weight 400) - 큰 숫자 옆
+// "Unit" 접미사용. Summary/Sector 양쪽에서 재사용되어 공용 토큰으로 승격.
+val UnitSuffixStyle = TextStyle(
+    fontFamily = Pretendard,
+    fontWeight = FontWeight.Normal,
+    fontSize = 12.sp,
+    lineHeight = 21.6.sp,
+    letterSpacing = (-0.024).sp,
+    platformStyle = NoFontPadding,
+    lineHeightStyle = CenteredLineHeight
+)
+
 // M3 표준 컴포넌트(TopAppBar, Button, TextField 등)가 참조하는 Typography.
 // 실측값이 있는 역할은 위 raw 토큰을 그대로 재사용하고, 대응 값이 없는 역할은
 // Pretendard 폰트만 맞춘 임시값을 쓴다(TODO 표시, 실측값 확정 시 교체).
