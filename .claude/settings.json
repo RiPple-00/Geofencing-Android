@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew installDebug --console=plain)",
+      "Bash(adb shell *)",
+      "Bash(android screen *)",
+      "Bash(ANDROID_SERIAL=emulator-5554 android screen capture -o /private/tmp/claude-502/-Users-ny-Projects/6fb52372-a6b5-48f4-99e1-9e89e5a82047/scratchpad/statusbar_fix.png)",
+      "Bash(adb logcat *)",
+      "Bash(android emulator *)",
+      "Bash(adb devices *)",
+      "WebSearch",
+      "Bash(./gradlew :app:compileDebugKotlin --console=plain)",
+      "Bash(./gradlew compileDebugKotlin -q)",
+      "Bash(./gradlew installDebug -q)"
+    ]
+  }
+}
