@@ -34,6 +34,14 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.geofencing.R
+import com.example.geofencing.ui.map.slidepanel.SlidePanelHeader
+import com.example.geofencing.ui.map.slidepanel.StateTabRow
+import com.example.geofencing.ui.map.slidepanel.SlidePanelTab
+import com.example.geofencing.ui.map.slidepanel.summary.AllCartSummaryRow
+import com.example.geofencing.ui.map.slidepanel.summary.DrivingStatusCard
+import com.example.geofencing.ui.map.slidepanel.summary.EventCodeSection
+import com.example.geofencing.ui.map.slidepanel.summary.GeoFencingStatusCard
+import com.example.geofencing.ui.map.slidepanel.summary.RefreshStatusRow
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MapStyleOptions
@@ -43,13 +51,13 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 
-// z-order: 1) Map(최하단) 2) sidePanel(직접 구현한 드래그 시트) 3) 검색창(최상단)
-// sidePanel은 M3 BottomSheetScaffold(peek/expanded 2단 스냅) 대신 직접 만든 시트.
+// z-order: 1) Map(최하단) 2) slidePanel(직접 구현한 드래그 시트) 3) 검색창(최상단)
+// slidePanel은 M3 BottomSheetScaffold(peek/expanded 2단 스냅) 대신 직접 만든 시트.
 // 드래그를 놓은 지점에서 그대로 높이가 고정되어야 해서(스냅 없음), sheetHeightPx를
 // 손가락 이동량만큼 연속적으로 갱신하고 peek~screen 범위로 clamp만 한다.
 // 헤더 영역 = 드래그 핸들, 리스트 영역 = nestedScroll로 "리스트가 끝까지 스크롤된 뒤에만
 // 시트가 접히고/펼쳐지는" 동작을 함께 처리.
-// TODO: sidePanel 실제 콘텐츠, 검색창 스타일은 실측값 확정되면 교체하세요.
+// TODO: slidePanel 실제 콘텐츠, 검색창 스타일은 실측값 확정되면 교체하세요.
 @Composable
 fun MapScreen(
     modifier: Modifier = Modifier,
@@ -62,7 +70,7 @@ fun MapScreen(
     }
     val hazeState = rememberHazeState()
     var searchQuery by remember { mutableStateOf("") }
-    var selectedTab by remember { mutableStateOf(SidePanelTab.SUMMARY) }
+    var selectedTab by remember { mutableStateOf(SlidePanelTab.SUMMARY) }
     val context = LocalContext.current
     val mapProperties = remember {
         MapProperties(mapStyleOptions = MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style_dark))
@@ -118,8 +126,15 @@ fun MapScreen(
                 .fillMaxWidth()
                 .height(with(density) { sheetHeightPx.toDp() })
                 .background(
+                    // CSS: linear-gradient(0deg, #000 85.76%, transparent 100.65%) - 0deg는
+                    // 아래→위 기준이라 하단 85.76%는 완전 검정, 상단 ~14%만 빠르게 투명으로
+                    // 빠짐. Compose는 위(0)→아래(1) 기준이라 1 - 0.8576 = 0.1424로 변환.
                     Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color.Black)
+                        colorStops = arrayOf(
+                            0f to Color.Transparent,
+                            0.1424f to Color.Black,
+                            1f to Color.Black
+                        )
                     )
                 )
                 .nestedScroll(nestedScrollConnection)
@@ -134,7 +149,7 @@ fun MapScreen(
                         }
                     }
             ) {
-                SidePanelHeader(title = "Whole Sector", subtitle = "All Sector 16")
+                SlidePanelHeader(title = "Whole Sector", subtitle = "All Sector 16")
             }
             StateTabRow(
                 selectedTab = selectedTab,
@@ -143,13 +158,25 @@ fun MapScreen(
             )
             LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 when (selectedTab) {
-                    SidePanelTab.SUMMARY -> {
+                    SlidePanelTab.SUMMARY -> {
                         item {
-                            AllCartSummaryRow(modifier = Modifier.padding(16.dp))
+                            AllCartSummaryRow(modifier = Modifier.padding(vertical = 16.dp))
+                        }
+                        item {
+                            RefreshStatusRow()
+                        }
+                        item {
+                            EventCodeSection(modifier = Modifier.padding(top = 16.dp))
+                        }
+                        item {
+                            DrivingStatusCard(modifier = Modifier.padding(top = 16.dp))
+                        }
+                        item {
+                            GeoFencingStatusCard(modifier = Modifier.padding(vertical = 16.dp))
                         }
                     }
-                    SidePanelTab.SECTOR -> {
-                        items(sidePanelPlaceholderItems) { item ->
+                    SlidePanelTab.SECTOR -> {
+                        items(slidePanelPlaceholderItems) { item ->
                             Text(
                                 text = item,
                                 style = MaterialTheme.typography.bodyMedium,
@@ -157,7 +184,7 @@ fun MapScreen(
                             )
                         }
                     }
-                    SidePanelTab.CART -> {
+                    SlidePanelTab.CART -> {
                         item {
                             Text(
                                 text = "Cart 탭 콘텐츠 (TODO)",
@@ -180,4 +207,4 @@ fun MapScreen(
     }
 }
 
-private val sidePanelPlaceholderItems = listOf("설명 항목 1", "설명 항목 2", "설명 항목 3")
+private val slidePanelPlaceholderItems = listOf("설명 항목 1", "설명 항목 2", "설명 항목 3")

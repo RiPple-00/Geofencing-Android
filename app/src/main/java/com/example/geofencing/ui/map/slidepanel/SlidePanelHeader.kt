@@ -1,4 +1,4 @@
-package com.example.geofencing.ui.map
+package com.example.geofencing.ui.map.slidepanel
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -16,7 +16,7 @@ import com.example.geofencing.ui.theme.Header20
 
 // 피그마 실측값 그대로: title=header/20, subtitle=body/14. width는 컨테이너 폭에 맞춰 유동적으로.
 @Composable
-fun SidePanelHeader(
+fun SlidePanelHeader(
     title: String,
     subtitle: String,
     modifier: Modifier = Modifier

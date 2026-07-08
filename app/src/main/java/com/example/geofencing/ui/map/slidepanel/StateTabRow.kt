@@ -1,4 +1,4 @@
-package com.example.geofencing.ui.map
+package com.example.geofencing.ui.map.slidepanel
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,7 +21,7 @@ import com.example.geofencing.ui.theme.extendedColors
 
 // 피그마 tab_root/list/tab_item 구조. list(가로 배치)는 328dp를 3등분(106.667dp)한 값이라
 // fillMaxWidth + weight(1f)로 반응형 처리(고정폭 대신).
-enum class SidePanelTab(val label: String) {
+enum class SlidePanelTab(val label: String) {
     SUMMARY("Summary"),
     SECTOR("Sector"),
     CART("Cart")
@@ -29,8 +29,8 @@ enum class SidePanelTab(val label: String) {
 
 @Composable
 fun StateTabRow(
-    selectedTab: SidePanelTab,
-    onTabSelected: (SidePanelTab) -> Unit,
+    selectedTab: SlidePanelTab,
+    onTabSelected: (SlidePanelTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -43,7 +43,7 @@ fun StateTabRow(
             )
             .padding(4.dp)
     ) {
-        SidePanelTab.entries.forEach { tab ->
+        SlidePanelTab.entries.forEach { tab ->
             StateTabItem(
                 tab = tab,
                 selected = tab == selectedTab,
@@ -56,7 +56,7 @@ fun StateTabRow(
 
 @Composable
 private fun StateTabItem(
-    tab: SidePanelTab,
+    tab: SlidePanelTab,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier

@@ -36,8 +36,9 @@ release/
 .gradle/
 build/
 
-# Local configuration file (SDK path 등, 개인 환경 설정이라 커밋하면 안 됨)
+# Local configuration file (SDK path 등, 개인 환경 설정이라 커밋 안함)
 local.properties
+.claude/
 
 # Log/profiler
 *.log
