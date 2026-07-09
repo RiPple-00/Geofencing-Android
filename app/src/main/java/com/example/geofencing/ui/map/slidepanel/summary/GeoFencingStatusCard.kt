@@ -5,14 +5,14 @@ import androidx.compose.ui.Modifier
 import com.example.geofencing.ui.theme.DarkBrandPrimary
 import com.example.geofencing.ui.theme.DarkWarningPrimary
 
-// TODO: Compliance/Violation 수치는 domain/repository 확정 전까지 상수로 채움.
+// 수치는 GET /sites/{siteId}/summary의 cartSummary.geofenceStatus에서 온다.
 @Composable
-fun GeoFencingStatusCard(modifier: Modifier = Modifier) {
+fun GeoFencingStatusCard(modifier: Modifier = Modifier, compliant: Int = 0, violating: Int = 0) {
     PieChartStatusCard(
         title = "GeoFencing Status",
         segments = listOf(
-            PieChartSegment(label = "Compliance", value = 9, color = DarkBrandPrimary),
-            PieChartSegment(label = "Violation", value = 3, color = DarkWarningPrimary)
+            PieChartSegment(label = "Compliance", value = compliant, color = DarkBrandPrimary),
+            PieChartSegment(label = "Violation", value = violating, color = DarkWarningPrimary)
         ),
         modifier = modifier
     )

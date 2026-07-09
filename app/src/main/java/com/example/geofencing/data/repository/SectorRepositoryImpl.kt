@@ -1,18 +1,21 @@
 package com.example.geofencing.data.repository
 
-import com.example.geofencing.data.model.Sector
-import com.google.android.gms.maps.model.LatLng
+import com.example.geofencing.data.model.SectorDetail
+import com.example.geofencing.data.model.SectorSearchResult
+import com.example.geofencing.data.remote.GeofencingApi
+import com.example.geofencing.data.remote.toDomain
+import com.example.geofencing.data.remote.unwrap
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class SectorRepositoryImpl @Inject constructor() : SectorRepository {
+class SectorRepositoryImpl @Inject constructor(
+    private val api: GeofencingApi
+) : SectorRepository {
 
-    // TODO: 실제 데이터 소스(서버 API 등)로 교체. 제목/부제 필드가 확정되면 Sector 모델도 함께 조정.
-    private val sectors = listOf(
-        Sector(id = "1", name = "Sector #1", cartCount = 16, position = LatLng(51.4967, 0.1058)),
-        Sector(id = "2", name = "Sector #2", cartCount = 16, position = LatLng(51.5423, 0.1638), isCritical = true)
-    )
+    override suspend fun getSectorDetail(siteId: Int, sectorId: Int): SectorDetail =
+        api.getSectorDetail(siteId, sectorId).unwrap().toDomain()
 
-    override fun getSectors(): List<Sector> = sectors
+    override suspend fun searchSectors(siteId: Int, query: String, limit: Int?): List<SectorSearchResult> =
+        api.searchSectors(siteId, query, limit).unwrap().results.map { it.toDomain() }
 }

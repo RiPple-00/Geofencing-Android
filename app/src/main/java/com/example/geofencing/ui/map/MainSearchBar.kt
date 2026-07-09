@@ -20,6 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -32,6 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.geofencing.R
+import com.example.geofencing.data.model.SectorSearchResult
 import com.example.geofencing.ui.theme.Body14
 import com.example.geofencing.ui.theme.DarkBorderDefault
 import com.example.geofencing.ui.theme.DarkBorderStrong
@@ -56,93 +58,113 @@ fun MainSearchBar(
     onQueryChange: (String) -> Unit,
     onHamburgerClick: () -> Unit,
     hazeState: HazeState,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onFocusChanged: (Boolean) -> Unit = {},
+    searchResults: List<SectorSearchResult> = emptyList(),
+    resultHasViolation: (SectorSearchResult) -> Boolean = { false },
+    onResultClick: (SectorSearchResult) -> Unit = {}
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
 
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .hazeEffect(
-                state = hazeState,
-                style = HazeStyle(
-                    tint = HazeTint(Color.Black.copy(alpha = 0.4f)),
-                    blurRadius = 2.dp
-                )
-            )
-    ) {
-        Row(
+    LaunchedEffect(isFocused) { onFocusChanged(isFocused) }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
-                .height(72.dp)
-                .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.Start),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp)
-                    .border(
-                        width = 1.5.dp,
-                        color = if (isFocused) DarkBorderStrong else DarkBorderDefault,
-                        shape = RoundedCornerShape(RoundedMd)
+                .hazeEffect(
+                    state = hazeState,
+                    // 패널 fade 구간(진짜 투명)을 통해 지도가 비칠 때도 또렷하게 보이지 않도록
+                    style = HazeStyle(
+                        tint = HazeTint(Color.Black.copy(alpha = 0.45f)),
+                        blurRadius = 4.dp
                     )
-                    .background(color = DarkFillHighest, shape = RoundedCornerShape(RoundedMd))
-                    .padding(horizontal = Px3, vertical = PyMd),
-                contentAlignment = Alignment.CenterStart
+                )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .height(72.dp)
+                    .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.Start),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                if (query.isEmpty()) {
-                    // TODO: 상하 padding("unnamed") 정확한 값 확인되면 0.dp 대신 교체
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(24.dp)
-                            .padding(top = 0.dp, bottom = 0.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.Start),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Image(
-                            painter = painterResource(R.drawable.ic_information),
-                            contentDescription = null,
-                            contentScale = ContentScale.None,
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .border(
+                            width = 1.5.dp,
+                            color = if (isFocused) DarkBorderStrong else DarkBorderDefault,
+                            shape = RoundedCornerShape(RoundedMd)
+                        )
+                        .background(color = DarkFillHighest, shape = RoundedCornerShape(RoundedMd))
+                        .padding(horizontal = Px3, vertical = PyMd),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    if (query.isEmpty()) {
+                        // TODO: 상하 padding("unnamed") 정확한 값 확인되면 0.dp 대신 교체
+                        Row(
                             modifier = Modifier
-                                .padding(1.dp)
-                                .size(16.dp)
-                        )
-                        Text(
-                            text = "Cart or Sector Name",
-                            style = Body14,
-                            color = DarkTextDisabled,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
+                                .fillMaxWidth()
+                                .height(24.dp)
+                                .padding(top = 0.dp, bottom = 0.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.Start),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Image(
+                                painter = painterResource(R.drawable.ic_information),
+                                contentDescription = null,
+                                contentScale = ContentScale.None,
+                                modifier = Modifier
+                                    .padding(1.dp)
+                                    .size(16.dp)
+                            )
+                            Text(
+                                text = "Cart or Sector Name",
+                                style = Body14,
+                                color = DarkTextDisabled,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
+                    BasicTextField(
+                        value = query,
+                        onValueChange = onQueryChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        // 비활성(포커스 아웃) 상태에서는 입력했던 텍스트가 회색(text-disabled)으로,
+                        // 포커스 상태에서는 기본 텍스트 색으로 보인다 - 텍스트 자체는 지워지지 않음.
+                        textStyle = Body14.copy(color = if (isFocused) DarkTextPrimary else DarkTextDisabled),
+                        cursorBrush = SolidColor(DarkTextPrimary),
+                        interactionSource = interactionSource
+                    )
                 }
-                BasicTextField(
-                    value = query,
-                    onValueChange = onQueryChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    textStyle = Body14.copy(color = DarkTextPrimary),
-                    cursorBrush = SolidColor(DarkTextPrimary),
-                    interactionSource = interactionSource
-                )
-            }
 
-            IconButton(
-                onClick = onHamburgerClick,
-                modifier = Modifier.size(44.dp)
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_hamburger),
-                    contentDescription = "메뉴",
-                    tint = DarkTextPrimary
-                )
+                IconButton(
+                    onClick = onHamburgerClick,
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_hamburger),
+                        contentDescription = "메뉴",
+                        tint = DarkTextPrimary
+                    )
+                }
             }
+        }
+
+        if (isFocused && searchResults.isNotEmpty()) {
+            SearchList(
+                results = searchResults,
+                hasViolation = resultHasViolation,
+                onResultClick = onResultClick,
+                hazeState = hazeState
+            )
         }
     }
 }

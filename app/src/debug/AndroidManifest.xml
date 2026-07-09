@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 개발 중인 BE 서버가 아직 http(평문)라서 debug 빌드에서만 cleartext를 허용한다.
+         release 빌드는 main/AndroidManifest.xml 기본값(허용 안 함)을 그대로 따른다. -->
+    <application android:usesCleartextTraffic="true" />
+
+</manifest>

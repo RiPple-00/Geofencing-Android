@@ -5,14 +5,14 @@ import androidx.compose.ui.Modifier
 import com.example.geofencing.ui.theme.DarkBorderStrong
 import com.example.geofencing.ui.theme.DarkBrandPrimary
 
-// TODO: Driving/Idle 수치는 domain/repository 확정 전까지 상수로 채움.
+// 수치는 GET /sites/{siteId}/summary의 cartSummary.drivingStatus에서 온다.
 @Composable
-fun DrivingStatusCard(modifier: Modifier = Modifier) {
+fun DrivingStatusCard(modifier: Modifier = Modifier, driving: Int = 0, idle: Int = 0) {
     PieChartStatusCard(
         title = "Driving Status",
         segments = listOf(
-            PieChartSegment(label = "Driving", value = 4, color = DarkBrandPrimary),
-            PieChartSegment(label = "Idle", value = 1, color = DarkBorderStrong)
+            PieChartSegment(label = "Driving", value = driving, color = DarkBrandPrimary),
+            PieChartSegment(label = "Idle", value = idle, color = DarkBorderStrong)
         ),
         modifier = modifier
     )

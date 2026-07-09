@@ -26,9 +26,14 @@ import com.example.geofencing.ui.theme.UnitSuffixStyle
 
 // 좌우 30dp 여백 + All Cart-Violation : Violation-Compliance 간격 = 30:35 비율로 화면
 // 폭에 맞춰 유연하게 분배(고정 301dp 블록 대신). 각 그룹 자체 폭(78/74/84dp)은 고정값 유지.
-// TODO: All Cart/Violation/Compliance 수치는 domain/repository 확정 전까지 상수로 채움.
+// 수치는 GET /sites/{siteId}/summary의 cartSummary(total/geofenceStatus)에서 온다.
 @Composable
-fun AllCartSummaryRow(modifier: Modifier = Modifier) {
+fun AllCartSummaryRow(
+    modifier: Modifier = Modifier,
+    allCartTotal: Int = 0,
+    violationCount: Int = 0,
+    complianceCount: Int = 0
+) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -44,7 +49,7 @@ fun AllCartSummaryRow(modifier: Modifier = Modifier) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(text = "All Cart", style = Label16, color = DarkTextSecondary)
-            Text(text = "50", style = Label16, color = DarkTextSecondary)
+            Text(text = allCartTotal.toString(), style = Label16, color = DarkTextSecondary)
         }
 
         Spacer(modifier = Modifier.weight(30f))
@@ -68,7 +73,11 @@ fun AllCartSummaryRow(modifier: Modifier = Modifier) {
                 horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.Start),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ValueWithUnit(number = "3", numberColor = DarkCriticalPrimary, unitColor = DarkCriticalPrimary)
+                ValueWithUnit(
+                    number = violationCount.toString(),
+                    numberColor = DarkCriticalPrimary,
+                    unitColor = DarkCriticalPrimary
+                )
                 ChevronButton()
             }
         }
@@ -97,7 +106,11 @@ fun AllCartSummaryRow(modifier: Modifier = Modifier) {
                 horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.Start),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ValueWithUnit(number = "47", numberColor = DarkTextPrimary, unitColor = DarkTextSecondary)
+                ValueWithUnit(
+                    number = complianceCount.toString(),
+                    numberColor = DarkTextPrimary,
+                    unitColor = DarkTextSecondary
+                )
                 ChevronButton()
             }
         }

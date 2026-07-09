@@ -25,9 +25,14 @@ import com.example.geofencing.ui.theme.DarkTextSecondary
 import com.example.geofencing.ui.theme.Label13
 import com.example.geofencing.ui.theme.RoundedMd
 
-// TODO: 마지막 갱신 시각은 domain/repository 확정 전까지 상수로 채움.
+// lastRefreshedAt은 MapScreen에서 KST 등 로컬 타임존으로 이미 포맷된 문자열을 전달받는다
+// (BE는 UTC ISO 8601만 주고, 로컬 타임존 변환/표시는 App 담당이라는 API 명세를 따름).
 @Composable
-fun RefreshStatusRow(modifier: Modifier = Modifier) {
+fun RefreshStatusRow(
+    modifier: Modifier = Modifier,
+    lastRefreshedAt: String = "-",
+    onRefreshClick: () -> Unit = {}
+) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -36,7 +41,7 @@ fun RefreshStatusRow(modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "2026.07.06 12:24",
+            text = lastRefreshedAt,
             modifier = Modifier
                 .width(103.dp)
                 .height(14.dp),
@@ -44,7 +49,7 @@ fun RefreshStatusRow(modifier: Modifier = Modifier) {
             color = DarkTextSecondary
         )
         Spacer(modifier = Modifier.width(8.dp))
-        RefreshButton(onClick = { /* TODO: 새로고침 동작 연결 */ })
+        RefreshButton(onClick = onRefreshClick)
     }
 }
 

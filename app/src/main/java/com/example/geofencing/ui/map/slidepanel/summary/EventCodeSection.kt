@@ -26,13 +26,11 @@ import com.example.geofencing.ui.theme.Body13
 import com.example.geofencing.ui.theme.DarkBorderDefault
 import com.example.geofencing.ui.theme.DarkTextPrimary
 
-// TODO: 이벤트 목록은 domain/repository 확정 전까지 상수로 채움.
-private val eventCodePlaceholderItems = listOf("Deltax Mobility #1 GPS Violation")
-
 // 3/4/5(Event Code, Driving Status, GeoFencing Status)가 공유하는 StatusCardContainer 사용.
 // height는 200dp 고정(리스트 스크롤 영역 확보용) - 4/5번은 그래프 크기에 맞춰 따로 정함.
+// events는 GET /sites/{siteId}/geofence-events 결과를 화면 표시용 문자열로 매핑한 것.
 @Composable
-fun EventCodeSection(modifier: Modifier = Modifier) {
+fun EventCodeSection(modifier: Modifier = Modifier, events: List<String> = emptyList()) {
     StatusCardContainer(title = "Event Code", modifier = modifier.height(200.dp)) {
         val listState = rememberLazyListState()
 
@@ -47,7 +45,7 @@ fun EventCodeSection(modifier: Modifier = Modifier) {
                 verticalArrangement = Arrangement.spacedBy(0.dp, Alignment.Top),
                 horizontalAlignment = Alignment.Start
             ) {
-                items(eventCodePlaceholderItems) { title ->
+                items(events) { title ->
                     EventCodeRow(title = title)
                 }
             }

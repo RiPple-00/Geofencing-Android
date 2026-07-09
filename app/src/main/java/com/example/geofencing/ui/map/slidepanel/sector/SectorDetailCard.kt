@@ -57,15 +57,15 @@ private val Label12 = TextStyle(
 
 // 좌우로 스와이프되는 Sector 상세 정보 카드. header/section/status_area 3부분 중
 // section은 콘텐츠가 없어 생략 - header와 status_area만 구현.
-// TODO: Sector 이름/주소/수치는 domain/repository 확정 전까지 상수로 채움.
+// 이름/주소/수치는 GET /sites/{siteId}/sectors/{sectorId} 응답에서 온다(호출부 필수 지정).
 @Composable
 fun SectorDetailCard(
-    modifier: Modifier = Modifier,
-    name: String = "Sector #1",
-    address: String = "1776 Terminal Dr, Richland, WA 99354",
-    allCartCount: Int = 16,
-    violationCount: Int = 4,
-    complianceCount: Int = 47
+    name: String,
+    address: String,
+    allCartCount: Int,
+    violationCount: Int,
+    complianceCount: Int,
+    modifier: Modifier = Modifier
 ) {
     // violation이 하나라도 있으면 카드 border가 criticalPrimary(빨강)로 바뀐다 - 상세
     // 카드/리스트 카드 공통 규칙.

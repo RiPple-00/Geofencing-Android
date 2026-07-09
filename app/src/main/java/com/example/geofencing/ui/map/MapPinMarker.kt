@@ -34,14 +34,15 @@ import com.google.maps.android.compose.rememberUpdatedMarkerState
 private val CardCornerRadius = 5.90097.dp
 
 @Composable
-fun MapPinMarker(marker: MapMarkerInfo) {
+fun MapPinMarker(marker: MapMarkerInfo, onClick: () -> Unit = {}) {
     val cardBorderColor = if (marker.isCritical) DarkCriticalPrimary else DarkTextPrimary
     val pinBorderColor = if (marker.isCritical) DarkCriticalPrimary else DarkTextSecondary
 
     MarkerComposable(
         keys = arrayOf<Any>(marker.id, marker.isCritical, marker.title, marker.subtitle),
         state = rememberUpdatedMarkerState(position = marker.position),
-        anchor = Offset(0.5f, 1f)
+        anchor = Offset(0.5f, 1f),
+        onClick = { onClick(); true }
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Column(
