@@ -17,11 +17,7 @@ val localProperties = Properties().apply {
 
 android {
     namespace = "com.example.geofencing"
-    compileSdk {
-        version = release(37) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.example.geofencing"
