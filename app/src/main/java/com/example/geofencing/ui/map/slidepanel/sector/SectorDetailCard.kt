@@ -108,9 +108,7 @@ private fun SectorDetailHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(
-            modifier = Modifier
-                .width(260.dp)
-                .height(41.dp),
+            modifier = Modifier.width(260.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.Top),
             horizontalAlignment = Alignment.Start
         ) {
@@ -118,8 +116,8 @@ private fun SectorDetailHeader(
                 horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.Start),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // violation이 하나라도 있으면 ic_warning(자체 빨간색 내장), 없으면
-                // ic_ok(brandPri/primary로 tint).
+                // violation이 하나라도 있으면 ic_warning(자체 빨간색 내장),
+                // 없으면 ic_ok(brandPri/primary로 tint).
                 if (hasViolation) {
                     Image(
                         painter = painterResource(R.drawable.ic_warning),

@@ -7,10 +7,14 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -59,15 +63,18 @@ import com.example.geofencing.ui.map.slidepanel.summary.DrivingStatusCard
 import com.example.geofencing.ui.map.slidepanel.summary.EventCodeSection
 import com.example.geofencing.ui.map.slidepanel.summary.GeoFencingStatusCard
 import com.example.geofencing.ui.map.slidepanel.summary.RefreshStatusRow
+import com.example.geofencing.ui.theme.DarkBackground
 import com.example.geofencing.ui.theme.DarkBrandPrimary
 import com.example.geofencing.ui.theme.DarkCriticalPrimary
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.PolyUtil
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Polygon
 import com.google.maps.android.compose.rememberCameraPositionState
 import dev.chrisbanes.haze.hazeSource
@@ -80,6 +87,10 @@ import kotlinx.coroutines.launch
 // 지오펜스 폴리곤을 그릴 때 PolyUtil.simplify로 다듬는 허용 오차(미터) - 점이 너무
 // 많은 경계선도 시각적으로 거의 동일하게, 더 가볍게 그리기 위함.
 private const val GEOFENCE_SIMPLIFY_TOLERANCE_METERS = 5.0
+
+// MainSearchBar 자체 높이(72dp, statusBarsPadding 별도) - 지도 contentPadding에 반영해서
+// 카메라 프레이밍이 검색바에 가려지는 영역을 정중앙으로 착각하지 않게 한다.
+private val SEARCH_BAR_HEIGHT_DP = 72.dp
 
 // TODO: slidePanel 실제 콘텐츠, 검색창 스타일은 실측값 확정되면 교체하세요.
 @Composable
@@ -121,6 +132,8 @@ fun MapScreen(
     val mapProperties = remember {
         MapProperties(mapStyleOptions = MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style_dark))
     }
+    // 확대/축소 +/- 버튼 숨김. Google 로고는 Maps Platform 이용약관상 가릴 수 없어 그대로 둠.
+    val mapUiSettings = remember { MapUiSettings(zoomControlsEnabled = false) }
     val sectorPagerState = rememberPagerState(pageCount = { sectorDetails.size })
     val listState = rememberLazyListState()
 
@@ -132,20 +145,25 @@ fun MapScreen(
     // 패널 상단 fade(투명→검정) 구간의 절대 크기. 원래 CSS 비율(0.1424)은 1600px(=dp) 대비 계산된 값
     // 1600 * 0.1424 = 227.84dp라는 고정 dp 값으로 확정
     val fadeHeightPx = with(density) { 227.84.dp.toPx() }
+    // 기기별/내비게이션 모드별(제스처 vs 3버튼)로 높이가 다르고 런타임에도 바뀔 수 있어서
+    // 고정값 대신 WindowInsets로 실측. 디자인은 이 여백을 고려하지 않았으므로 peek
+    // 높이/리스트 하단 여백에 더해줘서 콘텐츠가 시스템 내비게이션 바에 가려지지 않게 한다.
+    val navigationBarBottomDp = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val navigationBarBottomPx = with(density) { navigationBarBottomDp.toPx() }
     // Summary는 접힌 기본 상태에서도 "All Cart 50 / Violation 3 Unit >" 구간까지 보여야 함. 279는 figma 실측값
-    val summaryPeekHeightPx = with(density) { 279.dp.toPx() }
+    val summaryPeekHeightPx = with(density) { 279.dp.toPx() } + navigationBarBottomPx
     // Sector는 접힌 기본 상태에서도 캐러셀 카드+네비게이션 circle까지 보여야 함. 384는 figma 실측값
-    val sectorPeekHeightPx = with(density) { 384.dp.toPx() }
+    val sectorPeekHeightPx = with(density) { 384.dp.toPx() } + navigationBarBottomPx
     val peekHeightPx = when (selectedTab) {
         SlidePanelTab.SUMMARY -> summaryPeekHeightPx
         SlidePanelTab.SECTOR -> sectorPeekHeightPx
         SlidePanelTab.CART -> summaryPeekHeightPx
     }
     var sheetHeightPx by remember { mutableFloatStateOf(peekHeightPx) }
-
-    // 탭이 바뀌면 그 탭의 기본(peek) 높이로 스냅 - Sector는 카드+인디케이터가 기본으로 보여야 함.
+    // 탭마다 최소(peek) 높이가 달라서(Summary/Cart 279dp, Sector 384dp), 낮게 접힌 상태에서
+    // 탭을 전환하면 새 탭의 최소 높이보다 낮게 남아있을 수 있다 - 그 경우에만 최소 높이로 올려준다.
     LaunchedEffect(selectedTab) {
-        sheetHeightPx = peekHeightPx
+        sheetHeightPx = sheetHeightPx.coerceAtLeast(peekHeightPx)
     }
 
     val nestedScrollConnection = remember(peekHeightPx, screenHeightPx) {
@@ -184,7 +202,15 @@ fun MapScreen(
                 .fillMaxSize()
                 .hazeSource(state = hazeState),
             cameraPositionState = cameraPositionState,
-            properties = mapProperties
+            properties = mapProperties,
+            uiSettings = mapUiSettings,
+            // 상단 검색바/상태바, 하단 슬라이드 패널이 가리는 영역을 지도에 알려줘야 카메라
+            // 프레이밍(중심/줌 맞춤)이 실제로 "보이는" 지도 영역 기준으로 계산된다. 이게
+            // 없으면 전체 뷰 기준으로 중앙 정렬되어 패널이 클수록 위로 쏠려 보인다.
+            contentPadding = PaddingValues(
+                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + SEARCH_BAR_HEIGHT_DP,
+                bottom = with(density) { sheetHeightPx.toDp() }
+            )
         ) {
             // TODO: 줌 레벨에 따라 점(마커만)/폴리곤(경계선)으로 다르게 렌더링해야 하는데,
             // 디자인이 아직 없어서 지금은 줌 레벨과 무관하게 항상 폴리곤으로 그린다.
@@ -228,7 +254,7 @@ fun MapScreen(
                 .hazeSource(state = hazeState, zIndex = 1f)
                 .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
                 .drawWithContent {
-                    drawRect(Color.Black)
+                    drawRect(DarkBackground)
                     val firstItem = listState.layoutInfo.visibleItemsInfo.firstOrNull()
                     if (firstItem != null && firstItem.index == 0) {
                         // fadeHeightPx(고정 227.84dp)만큼만 투명→검정으로 전환하고, 그
@@ -238,7 +264,7 @@ fun MapScreen(
                         if (topPx < fadeHeightPx) {
                             drawRect(
                                 brush = Brush.verticalGradient(
-                                    colors = listOf(Color.Transparent, Color.Black),
+                                    colors = listOf(Color.Transparent, DarkBackground),
                                     startY = topPx,
                                     endY = topPx + fadeHeightPx
                                 ),
@@ -256,7 +282,7 @@ fun MapScreen(
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxWidth().weight(1f),
-                contentPadding = PaddingValues(bottom = 68.dp)
+                contentPadding = PaddingValues(bottom = 68.dp + navigationBarBottomDp)
             ) {
                 item {
                     Box(
@@ -413,12 +439,17 @@ fun MapScreen(
                 sectorDetails.find { it.id == result.id }?.cartSummary?.violating?.let { it > 0 } ?: false
             },
             onResultClick = { result ->
-                // 탭 전환 없이 지도 카메라만 해당 섹터 좌표로 이동 - Sector 탭으로는 안 넘어간다.
-                val position = markers.find { it.id == result.id.toString() }?.position
-                if (position != null) {
+                // 탭 전환 없이 지도 카메라만 해당 섹터로 이동 - Sector 탭으로는 안 넘어간다.
+                // 패널은 검색 클릭마다 항상 현재 탭의 기본(peek) 높이로 되돌린다. 그래야 위
+                // contentPadding 계산에 쓰이는 패널 높이가 카메라 이동 시점과 어긋나지 않는다
+                // (펼쳐진 패널 높이로 프레이밍한 뒤 패널만 접히면 다시 안 맞아 보임).
+                sheetHeightPx = peekHeightPx
+                val bounds = sectorOverviews.find { it.id == result.id }?.geofence?.let(::buildBoundsOrNull)
+                if (bounds != null) {
+                    val paddingPx = with(density) { 48.dp.toPx().toInt() }
                     coroutineScope.launch {
                         runCatching {
-                            cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(position, 15f))
+                            cameraPositionState.animate(CameraUpdateFactory.newLatLngBounds(bounds, paddingPx))
                         }
                     }
                 }
@@ -426,7 +457,26 @@ fun MapScreen(
             },
             modifier = Modifier.align(Alignment.TopCenter)
         )
+
+        // 하단 내비게이션 바(뒤로가기/홈/최근 앱) 영역의 배경 - 슬라이드 패널 높이 계산과
+        // 무관하게 항상 이 영역을 덮도록, 검색창처럼 Box의 마지막 자식(최상단 z-index)으로 고정.
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(navigationBarBottomDp)
+                .background(DarkBackground)
+        )
     }
+}
+
+// 섹터 하나의 지오펜스 꼭짓점을 모두 포함하는 경계 - 폴리곤 크기/모양과 무관하게 화면에
+// 딱 맞춰 확대하기 위해, 대표점(Pole of Inaccessibility) 대신 전체 좌표를 사용한다.
+private fun buildBoundsOrNull(points: List<LatLng>): LatLngBounds? {
+    if (points.isEmpty()) return null
+    val builder = LatLngBounds.Builder()
+    points.forEach { builder.include(it) }
+    return runCatching { builder.build() }.getOrNull()
 }
 
 // BE는 UTC ISO 8601만 주고 로컬 타임존(KST 등) 변환/표시는 App이 담당한다는 API 명세에

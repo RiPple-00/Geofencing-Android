@@ -77,8 +77,8 @@ fun MainSearchBar(
                     state = hazeState,
                     // 패널 fade 구간(진짜 투명)을 통해 지도가 비칠 때도 또렷하게 보이지 않도록
                     style = HazeStyle(
-                        tint = HazeTint(Color.Black.copy(alpha = 0.45f)),
-                        blurRadius = 4.dp
+                        tint = HazeTint(Color.Black.copy(alpha = 0.40f)),
+                        blurRadius = 3.dp
                     )
                 )
         ) {

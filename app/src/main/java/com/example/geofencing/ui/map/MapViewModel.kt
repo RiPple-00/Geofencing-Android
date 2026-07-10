@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 
 @HiltViewModel
@@ -83,12 +84,12 @@ class MapViewModel @Inject constructor(
                 delay(POLL_INTERVAL_MS)
             }
         }
-        // 글자 하나 입력할 때마다 바로 검색 API를 호출한다(디바운스 없음) - itemList가
-        // 매 입력마다 즉시 리렌더링되어야 하므로. collectLatest라 이전 호출은 새 입력이
-        // 오면 자동으로 취소된다.
+        // 디바운스: 타이핑이 300ms 이상 멈췄을 때만 검색 API를 호출
+        // collectLatest라 디바운스 대기 중 새 입력이 오면 이전 대기/호출은 자동으로 취소된다.
         viewModelScope.launch {
             // StateFlow는 이미 동일 값 연속 방출을 걸러주므로 distinctUntilChanged가 불필요.
             searchQuery
+                .debounce(SEARCH_DEBOUNCE_MS)
                 .collectLatest { query ->
                     if (query.isBlank()) {
                         _searchResults.value = emptyList()
@@ -153,6 +154,7 @@ class MapViewModel @Inject constructor(
 
     private companion object {
         const val POLL_INTERVAL_MS = 10_000L
+        const val SEARCH_DEBOUNCE_MS = 300L
         val FALLBACK_POSITION = LatLng(0.0, 0.0)
     }
 }
