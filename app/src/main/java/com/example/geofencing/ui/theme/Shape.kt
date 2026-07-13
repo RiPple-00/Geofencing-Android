@@ -25,3 +25,4 @@ val BorderWidth8 = 8.dp
 
 // 코너 반경 (실측값, 피그마 변수명 그대로)
 val RoundedMd = 6.dp
+val RoundedLg = 8.dp

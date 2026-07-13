@@ -1,12 +1,15 @@
 package com.example.geofencing.ui.map.slidepanel
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -14,7 +17,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.example.geofencing.R
 import com.example.geofencing.ui.theme.Label14
 import com.example.geofencing.ui.theme.RoundedMd
 import com.example.geofencing.ui.theme.extendedColors
@@ -31,7 +36,8 @@ enum class SlidePanelTab(val label: String) {
 fun StateTabRow(
     selectedTab: SlidePanelTab,
     onTabSelected: (SlidePanelTab) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    hasUnseenViolation: Boolean = false
 ) {
     Row(
         modifier = modifier
@@ -47,6 +53,7 @@ fun StateTabRow(
             StateTabItem(
                 tab = tab,
                 selected = tab == selectedTab,
+                showWarningBadge = tab == SlidePanelTab.CART && hasUnseenViolation,
                 onClick = { onTabSelected(tab) },
                 modifier = Modifier.weight(1f)
             )
@@ -58,28 +65,43 @@ fun StateTabRow(
 private fun StateTabItem(
     tab: SlidePanelTab,
     selected: Boolean,
+    showWarningBadge: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(
-        modifier = modifier
-            .height(40.dp)
-            .background(
-                color = if (selected) MaterialTheme.extendedColors.fillPrimary else Color.Transparent,
-                shape = RoundedCornerShape(RoundedMd)
+    Box(modifier = modifier) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(40.dp)
+                .background(
+                    color = if (selected) MaterialTheme.extendedColors.fillPrimary else Color.Transparent,
+                    shape = RoundedCornerShape(RoundedMd)
+                )
+                .clickable(onClick = onClick)
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = tab.label,
+                style = Label14,
+                color = if (selected) {
+                    MaterialTheme.extendedColors.textPrimary
+                } else {
+                    MaterialTheme.extendedColors.textDisabled
+                }
             )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = tab.label,
-            style = Label14,
-            color = if (selected) {
-                MaterialTheme.extendedColors.textPrimary
-            } else {
-                MaterialTheme.extendedColors.textDisabled
-            }
-        )
+        }
+        if (showWarningBadge) {
+            // 미확인 violation 배지 - TopEnd 기준 상대 오프셋(y는 위치 조정 중).
+            Image(
+                painter = painterResource(R.drawable.ic_warning),
+                contentDescription = null,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = (0.67).dp, y = (-7).dp)
+                    .size(11.667.dp)
+            )
+        }
     }
 }

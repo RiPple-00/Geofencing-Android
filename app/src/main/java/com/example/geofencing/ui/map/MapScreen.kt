@@ -62,6 +62,8 @@ import com.example.geofencing.ui.map.slidepanel.cart.CartFilter
 import com.example.geofencing.ui.map.slidepanel.cart.CartFilterTabRow
 import com.example.geofencing.ui.map.slidepanel.cart.CartListItem
 import com.example.geofencing.ui.map.slidepanel.cart.CartListItemCard
+import com.example.geofencing.ui.map.slidepanel.cart.CartListPageSize
+import com.example.geofencing.ui.map.slidepanel.cart.CartPaginationRow
 import com.example.geofencing.ui.map.slidepanel.cart.CartSummaryRow
 import com.example.geofencing.ui.map.slidepanel.sector.SectorDetailCard
 import com.example.geofencing.ui.map.slidepanel.sector.SectorListItemCard
@@ -113,6 +115,7 @@ fun MapScreen(
     val sectorDetails by viewModel.sectorDetails.collectAsState()
     val sectorOverviews by viewModel.sectorOverviews.collectAsState()
     val geofenceEvents by viewModel.geofenceEvents.collectAsState()
+    val hasUnseenViolation by viewModel.hasUnseenViolation.collectAsState()
     val lastRefreshedAt by viewModel.lastRefreshedAt.collectAsState()
     val initialCameraBounds by viewModel.initialCameraBounds.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
@@ -139,6 +142,15 @@ fun MapScreen(
     var isSearchFocused by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(SlidePanelTab.SUMMARY) }
     var selectedCartFilter by remember { mutableStateOf(CartFilter.ALL) }
+    var cartPage by remember { mutableStateOf(0) }
+    // 필터가 바뀌면 목록 길이가 달라져 이전 페이지 번호가 더 이상 유효하지 않을 수 있어 첫 페이지로 리셋.
+    // Violation 필터를 실제로 열어본 시점을 "확인함"으로 기록해서 warning 배지를 내린다.
+    LaunchedEffect(selectedCartFilter) {
+        cartPage = 0
+        if (selectedCartFilter == CartFilter.VIOLATION) {
+            viewModel.acknowledgeViolations()
+        }
+    }
     // TODO: 카트 목록 API가 생기면 더미 데이터를 실제 응답으로 교체.
     val dummyCartItems = remember {
         List(10) { index -> CartListItem(id = index + 1, name = "Cart #${index + 1}", violating = index % 3 == 0) }
@@ -169,14 +181,18 @@ fun MapScreen(
     val summaryPeekHeightPx = with(density) { 279.dp.toPx() } + navigationBarBottomPx
     // Sector는 접힌 기본 상태에서도 캐러셀 카드+네비게이션 circle까지 보여야 함. 384는 figma 실측값
     val sectorPeekHeightPx = with(density) { 384.dp.toPx() } + navigationBarBottomPx
+    // Cart는 접힌 기본 상태에서 필터 버튼 + 첫 리스트 아이템까지 보여야 함. 피그마 기준
+    // 아트보드 높이 800dp에서 상단 패널과의 간격 368dp를 뺀 432dp가 실측값.
+    val cartPeekHeightPx = with(density) { 432.dp.toPx() } + navigationBarBottomPx
     val peekHeightPx = when (selectedTab) {
         SlidePanelTab.SUMMARY -> summaryPeekHeightPx
         SlidePanelTab.SECTOR -> sectorPeekHeightPx
-        SlidePanelTab.CART -> summaryPeekHeightPx
+        SlidePanelTab.CART -> cartPeekHeightPx
     }
     var sheetHeightPx by remember { mutableFloatStateOf(peekHeightPx) }
-    // 탭마다 최소(peek) 높이가 달라서(Summary/Cart 279dp, Sector 384dp), 낮게 접힌 상태에서
-    // 탭을 전환하면 새 탭의 최소 높이보다 낮게 남아있을 수 있다 - 그 경우에만 최소 높이로 올려준다.
+    // 탭마다 최소(peek) 높이가 달라서(Summary 279dp, Sector 384dp, Cart 432dp), 낮게 접힌
+    // 상태에서 탭을 전환하면 새 탭의 최소 높이보다 낮게 남아있을 수 있다 - 그 경우에만 최소
+    // 높이로 올려준다.
     LaunchedEffect(selectedTab) {
         sheetHeightPx = sheetHeightPx.coerceAtLeast(peekHeightPx)
     }
@@ -320,7 +336,8 @@ fun MapScreen(
                     StateTabRow(
                         selectedTab = selectedTab,
                         onTabSelected = { selectedTab = it },
-                        modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp)
+                        modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp),
+                        hasUnseenViolation = hasUnseenViolation
                     )
                 }
                 when (selectedTab) {
@@ -437,7 +454,8 @@ fun MapScreen(
                                 )
                                 CartFilterTabRow(
                                     selectedFilter = selectedCartFilter,
-                                    onFilterSelected = { selectedCartFilter = it }
+                                    onFilterSelected = { selectedCartFilter = it },
+                                    hasUnseenViolation = hasUnseenViolation
                                 )
                             }
                         }
@@ -446,12 +464,26 @@ fun MapScreen(
                             CartFilter.VIOLATION -> dummyCartItems.filter { it.violating }
                             CartFilter.COMPLIANCE -> dummyCartItems.filter { !it.violating }
                         }
-                        items(filteredCartItems, key = { it.id }) { cart ->
+                        // 한 페이지 최대 CartListPageSize(7)개, 그 이상은 CartPaginationRow로 분할.
+                        val cartPages = filteredCartItems.chunked(CartListPageSize)
+                        val cartPageCount = cartPages.size.coerceAtLeast(1)
+                        val pagedCartItems = cartPages.getOrElse(cartPage) { emptyList() }
+                        items(pagedCartItems, key = { it.id }) { cart ->
                             CartListItemCard(
                                 name = cart.name,
                                 hasViolation = cart.violating,
                                 modifier = Modifier.padding(top = 16.dp)
                             )
+                        }
+                        if (cartPageCount > 1) {
+                            item {
+                                CartPaginationRow(
+                                    pageCount = cartPageCount,
+                                    currentPage = cartPage,
+                                    onPageSelected = { cartPage = it },
+                                    modifier = Modifier.padding(top = 16.dp)
+                                )
+                            }
                         }
                     }
                 }

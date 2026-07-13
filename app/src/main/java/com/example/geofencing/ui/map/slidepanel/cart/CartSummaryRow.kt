@@ -26,6 +26,9 @@ import com.example.geofencing.ui.theme.UnitSuffixStyle
 // Summary 탭 AllCartSummaryRow와 같은 내용(All Cart/Violation/Compliance)을 재사용하되
 // 간격은 실측값(All Cart-Violation 67dp, Violation-Compliance 29.5dp)으로 고정하고,
 // chevron 아이콘은 쓰지 않는다.
+// AllCartSummaryRow는 weight 기반 비율 간격이라 그룹 폭(78/74/84dp)이 고정이어도 문제
+// 없었지만, 여기서는 Spacer가 리터럴 dp라 그룹 폭에 남는 여백이 그대로 간격에 더해져 실제
+// 간격이 부풀어 보인다. 그룹은 내용 크기에 맞춰 감싸도록(wrap) 폭 고정을 두지 않는다.
 @Composable
 fun CartSummaryRow(
     modifier: Modifier = Modifier,
@@ -41,9 +44,7 @@ fun CartSummaryRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
-            modifier = Modifier
-                .width(78.dp)
-                .height(16.dp),
+            modifier = Modifier.height(16.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.Start),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -54,17 +55,13 @@ fun CartSummaryRow(
         Spacer(modifier = Modifier.width(67.dp))
 
         Column(
-            modifier = Modifier
-                .width(74.dp)
-                .height(54.dp),
+            modifier = Modifier.height(54.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.Top),
             horizontalAlignment = Alignment.Start
         ) {
             Text(
                 text = "Violation",
-                modifier = Modifier
-                    .width(51.dp)
-                    .height(18.dp),
+                modifier = Modifier.height(18.dp),
                 style = Body13,
                 color = DarkBorderStrong
             )
@@ -78,17 +75,13 @@ fun CartSummaryRow(
         Spacer(modifier = Modifier.width(29.5.dp))
 
         Column(
-            modifier = Modifier
-                .width(84.dp)
-                .height(54.dp),
+            modifier = Modifier.height(54.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.Top),
             horizontalAlignment = Alignment.Start
         ) {
             Text(
                 text = "Compliance",
-                modifier = Modifier
-                    .width(69.dp)
-                    .height(18.dp),
+                modifier = Modifier.height(18.dp),
                 style = Body13,
                 color = DarkBorderStrong
             )

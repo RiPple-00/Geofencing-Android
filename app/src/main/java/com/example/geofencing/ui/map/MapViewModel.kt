@@ -12,6 +12,7 @@ import com.example.geofencing.data.model.SectorSearchResult
 import com.example.geofencing.data.repository.GeofenceEventRepository
 import com.example.geofencing.data.repository.SectorRepository
 import com.example.geofencing.data.repository.SiteRepository
+import com.example.geofencing.data.repository.ViolationAckRepository
 import com.example.geofencing.util.poleOfInaccessibilityOrElse
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
@@ -22,17 +23,21 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 @HiltViewModel
 class MapViewModel @Inject constructor(
     private val siteRepository: SiteRepository,
     private val sectorRepository: SectorRepository,
-    private val geofenceEventRepository: GeofenceEventRepository
+    private val geofenceEventRepository: GeofenceEventRepository,
+    private val violationAckRepository: ViolationAckRepository
 ) : ViewModel() {
 
     // TODO: 로그인/사이트 선택 플로우가 생기면 고정값 대신 실제 선택된 siteId로 교체.
@@ -54,6 +59,15 @@ class MapViewModel @Inject constructor(
 
     private val _geofenceEvents = MutableStateFlow<List<GeofenceEventInfo>>(emptyList())
     val geofenceEvents: StateFlow<List<GeofenceEventInfo>> = _geofenceEvents.asStateFlow()
+
+    // 마지막으로 확인한 시각 이후에 발생한 이탈 이벤트가 하나라도 있으면 true -
+    // Violation 탭 버튼(필터/상단 Cart 탭)에 ic_warning 배지를 띄우는 데 쓰인다.
+    val hasUnseenViolation: StateFlow<Boolean> = combine(
+        _geofenceEvents,
+        violationAckRepository.lastAcknowledgedAt
+    ) { events, ackAt ->
+        events.any { it.occurredAt.isAfter(ackAt) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), false)
 
     private val _lastRefreshedAt = MutableStateFlow<Instant?>(null)
     val lastRefreshedAt: StateFlow<Instant?> = _lastRefreshedAt.asStateFlow()
@@ -108,6 +122,12 @@ class MapViewModel @Inject constructor(
     // RefreshStatusRow의 새로고침 버튼에서 호출 - 폴링을 기다리지 않고 즉시 갱신.
     fun refresh() {
         viewModelScope.launch { refreshSummary() }
+    }
+
+    // 사용자가 Violation 필터를 실제로 열어봤을 때 호출 - 이 시점 이후의 이탈 이벤트만
+    // 다시 "미확인"으로 취급한다.
+    fun acknowledgeViolations() {
+        viewModelScope.launch { violationAckRepository.acknowledgeNow() }
     }
 
     private suspend fun refreshSummary() {
