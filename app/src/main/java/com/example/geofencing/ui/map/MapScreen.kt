@@ -4,9 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -55,6 +58,11 @@ import com.example.geofencing.R
 import com.example.geofencing.ui.map.slidepanel.SlidePanelHeader
 import com.example.geofencing.ui.map.slidepanel.StateTabRow
 import com.example.geofencing.ui.map.slidepanel.SlidePanelTab
+import com.example.geofencing.ui.map.slidepanel.cart.CartFilter
+import com.example.geofencing.ui.map.slidepanel.cart.CartFilterTabRow
+import com.example.geofencing.ui.map.slidepanel.cart.CartListItem
+import com.example.geofencing.ui.map.slidepanel.cart.CartListItemCard
+import com.example.geofencing.ui.map.slidepanel.cart.CartSummaryRow
 import com.example.geofencing.ui.map.slidepanel.sector.SectorDetailCard
 import com.example.geofencing.ui.map.slidepanel.sector.SectorListItemCard
 import com.example.geofencing.ui.map.slidepanel.sector.SectorPageIndicator
@@ -63,9 +71,11 @@ import com.example.geofencing.ui.map.slidepanel.summary.DrivingStatusCard
 import com.example.geofencing.ui.map.slidepanel.summary.EventCodeSection
 import com.example.geofencing.ui.map.slidepanel.summary.GeoFencingStatusCard
 import com.example.geofencing.ui.map.slidepanel.summary.RefreshStatusRow
+import com.example.geofencing.ui.theme.Body14
 import com.example.geofencing.ui.theme.DarkBackground
 import com.example.geofencing.ui.theme.DarkBrandPrimary
 import com.example.geofencing.ui.theme.DarkCriticalPrimary
+import com.example.geofencing.ui.theme.extendedColors
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -128,6 +138,11 @@ fun MapScreen(
     var searchQuery by remember { mutableStateOf("") }
     var isSearchFocused by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(SlidePanelTab.SUMMARY) }
+    var selectedCartFilter by remember { mutableStateOf(CartFilter.ALL) }
+    // TODO: 카트 목록 API가 생기면 더미 데이터를 실제 응답으로 교체.
+    val dummyCartItems = remember {
+        List(10) { index -> CartListItem(id = index + 1, name = "Cart #${index + 1}", violating = index % 3 == 0) }
+    }
     val context = LocalContext.current
     val mapProperties = remember {
         MapProperties(mapStyleOptions = MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style_dark))
@@ -397,11 +412,45 @@ fun MapScreen(
                     SlidePanelTab.CART -> {
                         item {
                             // 위(StateTabRow)와의 24dp는 StateTabRow 자체 bottom padding이 담당.
-                            // 하단 여백은 LazyColumn의 contentPadding(68dp)이 담당.
-                            Text(
-                                text = "Cart 탭 콘텐츠 (TODO)",
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(horizontal = 16.dp)
+                            CartSummaryRow(
+                                allCartTotal = siteCartSummary?.total ?: 0,
+                                violationCount = siteCartSummary?.violating ?: 0,
+                                complianceCount = siteCartSummary?.compliant ?: 0
+                            )
+                        }
+                        item {
+                            // 제목은 왼쪽 끝, 필터 버튼은 오른쪽 끝에 붙인다(간격 고정 대신 양끝 정렬).
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 16.dp, top = 26.dp, end = 16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "${siteCartSummary?.total ?: 0} Cart",
+                                    modifier = Modifier
+                                        .width(48.dp)
+                                        .height(20.dp),
+                                    style = Body14,
+                                    color = MaterialTheme.extendedColors.textSecondary
+                                )
+                                CartFilterTabRow(
+                                    selectedFilter = selectedCartFilter,
+                                    onFilterSelected = { selectedCartFilter = it }
+                                )
+                            }
+                        }
+                        val filteredCartItems = when (selectedCartFilter) {
+                            CartFilter.ALL -> dummyCartItems
+                            CartFilter.VIOLATION -> dummyCartItems.filter { it.violating }
+                            CartFilter.COMPLIANCE -> dummyCartItems.filter { !it.violating }
+                        }
+                        items(filteredCartItems, key = { it.id }) { cart ->
+                            CartListItemCard(
+                                name = cart.name,
+                                hasViolation = cart.violating,
+                                modifier = Modifier.padding(top = 16.dp)
                             )
                         }
                     }
