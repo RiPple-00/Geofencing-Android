@@ -3,6 +3,7 @@ package com.example.geofencing.ui.map.slidepanel.sector
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -65,7 +66,8 @@ fun SectorDetailCard(
     allCartCount: Int,
     violationCount: Int,
     complianceCount: Int,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
 ) {
     // violation이 하나라도 있으면 카드 border가 criticalPrimary(빨강)로 바뀐다 - 상세
     // 카드/리스트 카드 공통 규칙.
@@ -78,6 +80,7 @@ fun SectorDetailCard(
             .height(154.dp)
             .border(width = 1.dp, color = borderColor, shape = CardShape)
             .background(color = DarkFillSecondary, shape = CardShape)
+            .clickable(onClick = onClick)
     ) {
         SectorDetailHeader(
             name = name,

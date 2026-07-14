@@ -55,6 +55,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.geofencing.R
+import com.example.geofencing.data.model.SectorDetail
 import com.example.geofencing.ui.map.slidepanel.SlidePanelHeader
 import com.example.geofencing.ui.map.slidepanel.StateTabRow
 import com.example.geofencing.ui.map.slidepanel.SlidePanelTab
@@ -95,15 +96,14 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
 
-// 지오펜스 폴리곤을 그릴 때 PolyUtil.simplify로 다듬는 허용 오차(미터) - 점이 너무
-// 많은 경계선도 시각적으로 거의 동일하게, 더 가볍게 그리기 위함.
+// 지오펜스 폴리곤을 그릴 때 PolyUtil.simplify로 다듬는 허용 오차(미터) 
+// - 점이 너무 많은 경계선도 시각적으로 거의 동일하게, 더 가볍게 그리기 위함.
 private const val GEOFENCE_SIMPLIFY_TOLERANCE_METERS = 5.0
 
 // MainSearchBar 자체 높이(72dp, statusBarsPadding 별도) - 지도 contentPadding에 반영해서
 // 카메라 프레이밍이 검색바에 가려지는 영역을 정중앙으로 착각하지 않게 한다.
 private val SEARCH_BAR_HEIGHT_DP = 72.dp
 
-// TODO: slidePanel 실제 콘텐츠, 검색창 스타일은 실측값 확정되면 교체하세요.
 @Composable
 fun MapScreen(
     modifier: Modifier = Modifier,
@@ -122,12 +122,11 @@ fun MapScreen(
     val density = LocalDensity.current
     val cameraPositionState = rememberCameraPositionState {
         // 실제 위치는 initialCameraBounds가 도착하는 즉시(LaunchedEffect) 모든 섹터가
-        // 보이도록 다시 맞춰진다. 그 전 짧은 로딩 구간에서만 보이는 임시값.
+        // 보이도록 다시 맞춤. 그 전 짧은 로딩 구간에서만 보이는 임시값.
         position = CameraPosition.fromLatLngZoom(LatLng(0.0, 0.0), 2f)
     }
     // 맨 처음 데이터가 들어왔을 때 모든 섹터를 한 화면에 담도록 카메라를 맞춘다.
-    // initialCameraBounds는 ViewModel에서 최초 1회만 채워지므로, 이후 폴링으로 사용자가
-    // 보고 있는 지도 시점이 리셋되지는 않는다.
+    // initialCameraBounds는 ViewModel에서 최초 1회만 채워지므로, 이후 폴링으로 사용자가 보고 있는 지도 시점이 리셋되지는 않음
     LaunchedEffect(initialCameraBounds) {
         val bounds = initialCameraBounds ?: return@LaunchedEffect
         val paddingPx = with(density) { 48.dp.toPx().toInt() }
@@ -143,9 +142,14 @@ fun MapScreen(
     var selectedTab by remember { mutableStateOf(SlidePanelTab.SUMMARY) }
     var selectedCartFilter by remember { mutableStateOf(CartFilter.ALL) }
     var cartPage by remember { mutableStateOf(0) }
+    // Sector 탭에서 특정 섹터를 눌러 Cart 탭으로 넘어왔을 때만 채워지는 이름 필터(부분
+    // 일치) - 아직 초기화 아이콘이 없어서, 상단 Cart 탭 버튼을 직접 눌렀을 때만 null로
+    // 리셋한다(전체 섹터의 카트를 보여줘야 하므로). All/Violation/Compliance 필터는 이
+    // 이름 필터와 별개라 리셋 대상이 아니다.
+    var cartNameFilter by remember { mutableStateOf<String?>(null) }
     // 필터가 바뀌면 목록 길이가 달라져 이전 페이지 번호가 더 이상 유효하지 않을 수 있어 첫 페이지로 리셋.
     // Violation 필터를 실제로 열어본 시점을 "확인함"으로 기록해서 warning 배지를 내린다.
-    LaunchedEffect(selectedCartFilter) {
+    LaunchedEffect(selectedCartFilter, cartNameFilter) {
         cartPage = 0
         if (selectedCartFilter == CartFilter.VIOLATION) {
             viewModel.acknowledgeViolations()
@@ -161,24 +165,14 @@ fun MapScreen(
     val listState = rememberLazyListState()
 
     val configurationScreenHeightDp = LocalConfiguration.current.screenHeightDp
-    // 초기값은 LocalConfiguration 추정치(첫 프레임 coerceIn 안전용) - 측정 즉시 정확한 값으로 교체.
     var screenHeightPx by remember {
         mutableFloatStateOf(with(density) { configurationScreenHeightDp.dp.toPx() })
     }
-    // 패널 상단 fade(투명→검정) 구간의 절대 크기. 원래 CSS 비율(0.1424)은 1600px(=dp) 대비 계산된 값
-    // 1600 * 0.1424 = 227.84dp라는 고정 dp 값으로 확정
     val fadeHeightPx = with(density) { 227.84.dp.toPx() }
-    // 기기별/내비게이션 모드별(제스처 vs 3버튼)로 높이가 다르고 런타임에도 바뀔 수 있어서
-    // 고정값 대신 WindowInsets로 실측. 디자인은 이 여백을 고려하지 않았으므로 peek
-    // 높이/리스트 하단 여백에 더해줘서 콘텐츠가 시스템 내비게이션 바에 가려지지 않게 한다.
     val navigationBarBottomDp = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val navigationBarBottomPx = with(density) { navigationBarBottomDp.toPx() }
-    // Summary는 접힌 기본 상태에서도 "All Cart 50 / Violation 3 Unit >" 구간까지 보여야 함. 279는 figma 실측값
     val summaryPeekHeightPx = with(density) { 279.dp.toPx() } + navigationBarBottomPx
-    // Sector는 접힌 기본 상태에서도 캐러셀 카드+네비게이션 circle까지 보여야 함. 384는 figma 실측값
     val sectorPeekHeightPx = with(density) { 384.dp.toPx() } + navigationBarBottomPx
-    // Cart는 접힌 기본 상태에서 필터 버튼 + 첫 리스트 아이템까지 보여야 함. 피그마 기준
-    // 아트보드 높이 800dp에서 상단 패널과의 간격 368dp를 뺀 432dp가 실측값.
     val cartPeekHeightPx = with(density) { 432.dp.toPx() } + navigationBarBottomPx
     val peekHeightPx = when (selectedTab) {
         SlidePanelTab.SUMMARY -> summaryPeekHeightPx
@@ -186,9 +180,8 @@ fun MapScreen(
         SlidePanelTab.CART -> cartPeekHeightPx
     }
     var sheetHeightPx by remember { mutableFloatStateOf(peekHeightPx) }
-    // 탭마다 최소(peek) 높이가 달라서(Summary 279dp, Sector 384dp, Cart 432dp), 낮게 접힌
-    // 상태에서 탭을 전환하면 새 탭의 최소 높이보다 낮게 남아있을 수 있다 - 그 경우에만 최소
-    // 높이로 올려준다.
+    // 탭마다 최소(peek) 높이가 달라서 낮게 접힌 상태에서 탭을 전환하면 새 탭의 최소 높이보다 낮게 남아있을 수 있음
+    // - 그 경우에만 최소 높이로 올려준다.
     LaunchedEffect(selectedTab) {
         sheetHeightPx = sheetHeightPx.coerceAtLeast(peekHeightPx)
     }
@@ -219,6 +212,23 @@ fun MapScreen(
         }
     }
 
+    // Sector 카드를 눌러 Cart 탭으로 넘어갈 때, 검색 결과를 눌렀을 때와 동일하게 지도
+    // 카메라를 그 섹터 경계로 확대하는 애니메이션을 재사용한다.
+    fun navigateToCartFilteredBySector(sector: SectorDetail) {
+        selectedTab = SlidePanelTab.CART
+        cartNameFilter = sector.name
+        sheetHeightPx = cartPeekHeightPx
+        val bounds = sectorOverviews.find { it.id == sector.id }?.geofence?.let(::buildBoundsOrNull)
+        if (bounds != null) {
+            val paddingPx = with(density) { 48.dp.toPx().toInt() }
+            coroutineScope.launch {
+                runCatching {
+                    cameraPositionState.animate(CameraUpdateFactory.newLatLngBounds(bounds, paddingPx))
+                }
+            }
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -231,9 +241,6 @@ fun MapScreen(
             cameraPositionState = cameraPositionState,
             properties = mapProperties,
             uiSettings = mapUiSettings,
-            // 상단 검색바/상태바, 하단 슬라이드 패널이 가리는 영역을 지도에 알려줘야 카메라
-            // 프레이밍(중심/줌 맞춤)이 실제로 "보이는" 지도 영역 기준으로 계산된다. 이게
-            // 없으면 전체 뷰 기준으로 중앙 정렬되어 패널이 클수록 위로 쏠려 보인다.
             contentPadding = PaddingValues(
                 top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + SEARCH_BAR_HEIGHT_DP,
                 bottom = with(density) { sheetHeightPx.toDp() }
@@ -257,9 +264,6 @@ fun MapScreen(
                 MapPinMarker(
                     marker = marker,
                     onClick = {
-                        // 마커 = Sector 탭 캐러셀의 카드 하나와 1:1 대응(같은 sectorId).
-                        // 탭을 Sector로 전환하고, 해당 카드로 캐러셀을 넘긴 뒤, 리스트를
-                        // 맨 위로 올려서 캐러셀이 바로 보이게 한다.
                         val targetPage = sectorDetails.indexOfFirst { it.id.toString() == marker.id }
                         if (targetPage >= 0) {
                             selectedTab = SlidePanelTab.SECTOR
@@ -284,9 +288,6 @@ fun MapScreen(
                     drawRect(DarkBackground)
                     val firstItem = listState.layoutInfo.visibleItemsInfo.firstOrNull()
                     if (firstItem != null && firstItem.index == 0) {
-                        // fadeHeightPx(고정 227.84dp)만큼만 투명→검정으로 전환하고, 그
-                        // 이후로는 verticalGradient 기본 TileMode.Clamp가 마지막 색상
-                        // (검정)을 그대로 이어간다 - 화면 높이 비율이 아닌 절대 거리 기준.
                         val topPx = firstItem.offset.toFloat()
                         if (topPx < fadeHeightPx) {
                             drawRect(
@@ -326,12 +327,15 @@ fun MapScreen(
                     }
                 }
                 item {
-                    // Summary/Sector/Cart 버튼과 다음에 오는 아이템 사이 간격은 항상 24dp -
-                    // 버튼 자신에게 bottom padding으로 줘서, 탭별 첫 아이템에 top padding을
-                    // 매번 챙겨줄 필요가 없도록 한다.
                     StateTabRow(
                         selectedTab = selectedTab,
-                        onTabSelected = { selectedTab = it },
+                        onTabSelected = { tab ->
+                            selectedTab = tab
+                            // Cart 탭 버튼을 직접 눌렀을 때는 항상 전체 섹터의 카트를 보여준다.
+                            if (tab == SlidePanelTab.CART) {
+                                cartNameFilter = null
+                            }
+                        },
                         modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp),
                         hasUnseenViolation = hasUnseenViolation
                     )
@@ -339,13 +343,19 @@ fun MapScreen(
                 when (selectedTab) {
                     SlidePanelTab.SUMMARY -> {
                         item {
-                            // 위(StateTabRow)와의 24dp는 StateTabRow 자체 bottom padding이 담당.
-                            // 아래(새로고침)와 22dp 실측값.
                             AllCartSummaryRow(
                                 modifier = Modifier.padding(bottom = 22.dp),
                                 allCartTotal = siteCartSummary?.total ?: 0,
                                 violationCount = siteCartSummary?.violating ?: 0,
-                                complianceCount = siteCartSummary?.compliant ?: 0
+                                complianceCount = siteCartSummary?.compliant ?: 0,
+                                onViolationClick = {
+                                    selectedTab = SlidePanelTab.CART
+                                    selectedCartFilter = CartFilter.VIOLATION
+                                },
+                                onComplianceClick = {
+                                    selectedTab = SlidePanelTab.CART
+                                    selectedCartFilter = CartFilter.COMPLIANCE
+                                }
                             )
                         }
                         item {
@@ -355,7 +365,6 @@ fun MapScreen(
                             )
                         }
                         item {
-                            // 새로고침과의 간격 12dp 실측값.
                             EventCodeSection(
                                 modifier = Modifier.padding(top = 12.dp),
                                 events = geofenceEvents.map { event ->
@@ -392,7 +401,8 @@ fun MapScreen(
                                     address = sector.address,
                                     allCartCount = sector.cartSummary.total,
                                     violationCount = sector.cartSummary.violating,
-                                    complianceCount = sector.cartSummary.compliant
+                                    complianceCount = sector.cartSummary.compliant,
+                                    onClick = { navigateToCartFilteredBySector(sector) }
                                 )
                             }
                         }
@@ -410,15 +420,14 @@ fun MapScreen(
                             }
                         }
                         // 카드를 item list 형식으로 나타낼 때 간격은 항상 16dp.
-                        // border가 빨간(이상이 있는) 섹터가 위로 오도록 정렬 - 캐러셀(위
-                        // HorizontalPager)은 마커 클릭 시 페이지 인덱스로 찾아가야 해서
-                        // sectorDetails 원본 순서를 그대로 유지하고, 이 리스트만 별도로 정렬.
+                        // border가 빨간(이상이 있는) 섹터가 위로 오도록 정렬
                         val sortedSectorDetails = sectorDetails.sortedByDescending { it.cartSummary.violating > 0 }
                         items(sortedSectorDetails, key = { it.id }) { sector ->
                             SectorListItemCard(
                                 name = sector.name,
                                 hasViolation = sector.cartSummary.violating > 0,
-                                modifier = Modifier.padding(top = 16.dp)
+                                modifier = Modifier.padding(top = 16.dp),
+                                onClick = { navigateToCartFilteredBySector(sector) }
                             )
                         }
                     }
@@ -455,10 +464,16 @@ fun MapScreen(
                                 )
                             }
                         }
+                        // Sector 탭에서 특정 섹터를 눌러 들어왔을 때만 그 섹터 이름을 포함하는
+                        // 카트로 좁힌다(이름 부분 일치 - 카트/섹터를 잇는 ID가 아직 없어서).
+                        val sectorScopedCartItems = cartNameFilter?.let { name ->
+                            cartItems.filter { it.name.contains(name) }
+                        } ?: cartItems
                         val filteredCartItems = when (selectedCartFilter) {
-                            CartFilter.ALL -> cartItems
-                            CartFilter.VIOLATION -> cartItems.filter { it.violating }
-                            CartFilter.COMPLIANCE -> cartItems.filter { !it.violating }
+                            // All 탭에서는 섹터 구분 없이 violating 카트가 항상 위로 오도록 정렬.
+                            CartFilter.ALL -> sectorScopedCartItems.sortedByDescending { it.violating }
+                            CartFilter.VIOLATION -> sectorScopedCartItems.filter { it.violating }
+                            CartFilter.COMPLIANCE -> sectorScopedCartItems.filter { !it.violating }
                         }
                         // 한 페이지 최대 CartListPageSize(7)개, 그 이상은 CartPaginationRow로 분할.
                         val cartPages = filteredCartItems.chunked(CartListPageSize)
@@ -486,9 +501,7 @@ fun MapScreen(
             }
         }
 
-        // 검색창이 포커스되면 화면 전체를 덮는 딤 처리 - z-index는 검색창보다 아래(지도/패널
-        // 위, 검색창 아래)라 검색창 자신은 딤에 가려지지 않는다. 딤을 탭하면 포커스를
-        // 해제한다(입력했던 텍스트는 그대로 유지).
+        // 검색창이 포커스되면 화면 전체를 덮는 딤 처리
         if (isSearchFocused) {
             Box(
                 modifier = Modifier
@@ -517,9 +530,6 @@ fun MapScreen(
             },
             onResultClick = { result ->
                 // 탭 전환 없이 지도 카메라만 해당 섹터로 이동 - Sector 탭으로는 안 넘어간다.
-                // 패널은 검색 클릭마다 항상 현재 탭의 기본(peek) 높이로 되돌린다. 그래야 위
-                // contentPadding 계산에 쓰이는 패널 높이가 카메라 이동 시점과 어긋나지 않는다
-                // (펼쳐진 패널 높이로 프레이밍한 뒤 패널만 접히면 다시 안 맞아 보임).
                 sheetHeightPx = peekHeightPx
                 val bounds = sectorOverviews.find { it.id == result.id }?.geofence?.let(::buildBoundsOrNull)
                 if (bounds != null) {

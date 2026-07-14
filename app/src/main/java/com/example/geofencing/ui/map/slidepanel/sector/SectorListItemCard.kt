@@ -3,6 +3,7 @@ package com.example.geofencing.ui.map.slidepanel.sector
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,7 +35,8 @@ import com.example.geofencing.ui.theme.SlidePanelHorizontalMargin
 fun SectorListItemCard(
     name: String,
     hasViolation: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
 ) {
     val borderColor = if (hasViolation) DarkCriticalPrimary else DarkBorderFocus
     Column(
@@ -44,6 +46,7 @@ fun SectorListItemCard(
             .height(60.dp)
             .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(RoundedMd))
             .background(color = DarkFillSecondary, shape = RoundedCornerShape(RoundedMd))
+            .clickable(onClick = onClick)
             .padding(start = 12.dp, top = 14.dp, end = 12.dp, bottom = 14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.Start

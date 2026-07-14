@@ -1,5 +1,6 @@
 package com.example.geofencing.ui.map.slidepanel.summary
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,7 +33,9 @@ fun AllCartSummaryRow(
     modifier: Modifier = Modifier,
     allCartTotal: Int = 0,
     violationCount: Int = 0,
-    complianceCount: Int = 0
+    complianceCount: Int = 0,
+    onViolationClick: () -> Unit = {},
+    onComplianceClick: () -> Unit = {}
 ) {
     Row(
         modifier = modifier
@@ -57,7 +60,8 @@ fun AllCartSummaryRow(
         Column(
             modifier = Modifier
                 .width(74.dp)
-                .height(54.dp),
+                .height(54.dp)
+                .clickable(onClick = onViolationClick),
             verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.Top),
             horizontalAlignment = Alignment.Start
         ) {
@@ -87,7 +91,8 @@ fun AllCartSummaryRow(
         Column(
             modifier = Modifier
                 .width(84.dp)
-                .height(54.dp),
+                .height(54.dp)
+                .clickable(onClick = onComplianceClick),
             verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.Top),
             horizontalAlignment = Alignment.Start
         ) {
