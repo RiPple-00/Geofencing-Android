@@ -94,6 +94,7 @@ import dev.chrisbanes.haze.rememberHazeState
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // 지오펜스 폴리곤을 그릴 때 PolyUtil.simplify로 다듬는 허용 오차(미터) 
@@ -142,13 +143,7 @@ fun MapScreen(
     var selectedTab by remember { mutableStateOf(SlidePanelTab.SUMMARY) }
     var selectedCartFilter by remember { mutableStateOf(CartFilter.ALL) }
     var cartPage by remember { mutableStateOf(0) }
-    // Sector 탭에서 특정 섹터를 눌러 Cart 탭으로 넘어왔을 때만 채워지는 이름 필터(부분
-    // 일치) - 아직 초기화 아이콘이 없어서, 상단 Cart 탭 버튼을 직접 눌렀을 때만 null로
-    // 리셋한다(전체 섹터의 카트를 보여줘야 하므로). All/Violation/Compliance 필터는 이
-    // 이름 필터와 별개라 리셋 대상이 아니다.
     var cartNameFilter by remember { mutableStateOf<String?>(null) }
-    // 필터가 바뀌면 목록 길이가 달라져 이전 페이지 번호가 더 이상 유효하지 않을 수 있어 첫 페이지로 리셋.
-    // Violation 필터를 실제로 열어본 시점을 "확인함"으로 기록해서 warning 배지를 내린다.
     LaunchedEffect(selectedCartFilter, cartNameFilter) {
         cartPage = 0
         if (selectedCartFilter == CartFilter.VIOLATION) {
@@ -168,9 +163,18 @@ fun MapScreen(
     var screenHeightPx by remember {
         mutableFloatStateOf(with(density) { configurationScreenHeightDp.dp.toPx() })
     }
+    // 카메라를 특정 영역에 맞출 때(fitCameraUpdate) 지도의 실시간 contentPadding을 읽지
+    // 않고 이 폭을 직접 계산에 써서, 시트 높이가 막 바뀐 직후에도(리컴포지션 전에도) 항상
+    // 최신 값으로 줌을 계산할 수 있게 한다.
+    val configurationScreenWidthDp = LocalConfiguration.current.screenWidthDp
+    var screenWidthPx by remember {
+        mutableFloatStateOf(with(density) { configurationScreenWidthDp.dp.toPx() })
+    }
     val fadeHeightPx = with(density) { 227.84.dp.toPx() }
     val navigationBarBottomDp = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val navigationBarBottomPx = with(density) { navigationBarBottomDp.toPx() }
+    val topContentPaddingDp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + SEARCH_BAR_HEIGHT_DP
+    val topContentPaddingPx = with(density) { topContentPaddingDp.toPx() }
     val summaryPeekHeightPx = with(density) { 279.dp.toPx() } + navigationBarBottomPx
     val sectorPeekHeightPx = with(density) { 384.dp.toPx() } + navigationBarBottomPx
     val cartPeekHeightPx = with(density) { 432.dp.toPx() } + navigationBarBottomPx
@@ -212,18 +216,25 @@ fun MapScreen(
         }
     }
 
-    // Sector 카드를 눌러 Cart 탭으로 넘어갈 때, 검색 결과를 눌렀을 때와 동일하게 지도
-    // 카메라를 그 섹터 경계로 확대하는 애니메이션을 재사용한다.
+    fun fitCameraUpdate(bounds: LatLngBounds, targetBottomPaddingPx: Float) = CameraUpdateFactory.newLatLngBounds(
+        bounds,
+        screenWidthPx.toInt().coerceAtLeast(1),
+        (screenHeightPx - topContentPaddingPx - targetBottomPaddingPx).toInt().coerceAtLeast(1),
+        with(density) { 48.dp.toPx().toInt() }
+    )
+
+    // Sector 카드를 눌러 Cart 탭으로 넘어갈 때, 검색 결과를 눌렀을 때와 동일하게 카메라를 섹터 경계로 확대하는 애니메이션을 재사용
     fun navigateToCartFilteredBySector(sector: SectorDetail) {
         selectedTab = SlidePanelTab.CART
         cartNameFilter = sector.name
         sheetHeightPx = cartPeekHeightPx
         val bounds = sectorOverviews.find { it.id == sector.id }?.geofence?.let(::buildBoundsOrNull)
-        if (bounds != null) {
-            val paddingPx = with(density) { 48.dp.toPx().toInt() }
-            coroutineScope.launch {
+        coroutineScope.launch {
+            listState.scrollToItem(0)
+            if (bounds != null) {
+                delay(100)
                 runCatching {
-                    cameraPositionState.animate(CameraUpdateFactory.newLatLngBounds(bounds, paddingPx))
+                    cameraPositionState.animate(fitCameraUpdate(bounds, cartPeekHeightPx))
                 }
             }
         }
@@ -232,7 +243,10 @@ fun MapScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .onGloballyPositioned { coordinates -> screenHeightPx = coordinates.size.height.toFloat() }
+            .onGloballyPositioned { coordinates ->
+                screenHeightPx = coordinates.size.height.toFloat()
+                screenWidthPx = coordinates.size.width.toFloat()
+            }
     ) {
         GoogleMap(
             modifier = Modifier
@@ -242,7 +256,7 @@ fun MapScreen(
             properties = mapProperties,
             uiSettings = mapUiSettings,
             contentPadding = PaddingValues(
-                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + SEARCH_BAR_HEIGHT_DP,
+                top = topContentPaddingDp,
                 bottom = with(density) { sheetHeightPx.toDp() }
             )
         ) {
@@ -532,11 +546,15 @@ fun MapScreen(
                 // 탭 전환 없이 지도 카메라만 해당 섹터로 이동 - Sector 탭으로는 안 넘어간다.
                 sheetHeightPx = peekHeightPx
                 val bounds = sectorOverviews.find { it.id == result.id }?.geofence?.let(::buildBoundsOrNull)
-                if (bounds != null) {
-                    val paddingPx = with(density) { 48.dp.toPx().toInt() }
-                    coroutineScope.launch {
+                coroutineScope.launch {
+                    // 높이만 peek로 바꾸고 스크롤 위치를 그대로 두면, 이전에 아래로
+                    // 스크롤해 놓은 상태였을 때 작아진 시트 안에 엉뚱한(아래쪽) 아이템만
+                    // 보여서 잘린 것처럼 보인다.
+                    listState.scrollToItem(0)
+                    if (bounds != null) {
+                        delay(100)
                         runCatching {
-                            cameraPositionState.animate(CameraUpdateFactory.newLatLngBounds(bounds, paddingPx))
+                            cameraPositionState.animate(fitCameraUpdate(bounds, peekHeightPx))
                         }
                     }
                 }
