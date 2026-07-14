@@ -1,0 +1,146 @@
+[
+  {
+    "interactions": [
+      "clickable",
+      "focusable"
+    ],
+    "center": "[961,188]",
+    "key": 3506402
+  },
+  {
+    "interactions": [
+      "clickable",
+      "focusable"
+    ],
+    "center": "[540,1200]",
+    "key": 3506402
+  },
+  {
+    "interactions": [
+      "scrollable"
+    ],
+    "center": "[540,1964]",
+    "bounds": "[0,1528][1080,2400]",
+    "key": 3506402
+  },
+  {
+    "interactions": [
+      "clickable",
+      "focusable",
+      "long-clickable"
+    ],
+    "center": "[455,188]",
+    "key": 3506402
+  },
+  {
+    "content-desc": "메뉴",
+    "center": "[961,188]",
+    "key": 3506402
+  },
+  {
+    "text": "Whole Sector",
+    "center": "[243,1721]",
+    "key": 3506402
+  },
+  {
+    "text": "All Sector 0",
+    "center": "[160,1809]",
+    "key": 3506402
+  },
+  {
+    "text": "All Cart",
+    "center": "[178,2246]",
+    "key": 3506402
+  },
+  {
+    "text": "0",
+    "center": "[290,2246]",
+    "key": 3506402
+  },
+  {
+    "text": "Violation",
+    "center": "[488,2189]",
+    "key": 3506402
+  },
+  {
+    "text": "0",
+    "center": "[426,2280]",
+    "key": 3506402
+  },
+  {
+    "text": "Unit",
+    "center": "[491,2280]",
+    "key": 3506402
+  },
+  {
+    "text": "Compliance",
+    "center": "[831,2189]",
+    "key": 3506402
+  },
+  {
+    "text": "0",
+    "center": "[740,2280]",
+    "key": 3506402
+  },
+  {
+    "text": "Unit",
+    "center": "[805,2280]",
+    "key": 3506402
+  },
+  {
+    "interactions": [
+      "clickable",
+      "focusable"
+    ],
+    "center": "[980,2387]",
+    "key": 3506402
+  },
+  {
+    "content-desc": "Google Map",
+    "interactions": [
+      "clickable",
+      "focusable"
+    ],
+    "center": "[540,1200]",
+    "key": 3506402
+  },
+  {
+    "interactions": [
+      "clickable",
+      "focusable"
+    ],
+    "center": "[222,2011]",
+    "key": 3506402
+  },
+  {
+    "interactions": [
+      "clickable",
+      "focusable"
+    ],
+    "center": "[540,2011]",
+    "key": 3506402
+  },
+  {
+    "interactions": [
+      "clickable",
+      "focusable"
+    ],
+    "center": "[858,2011]",
+    "key": 3506402
+  },
+  {
+    "text": "Summary",
+    "center": "[222,2011]",
+    "key": 3506402
+  },
+  {
+    "text": "Sector",
+    "center": "[540,2011]",
+    "key": 3506402
+  },
+  {
+    "text": "Cart",
+    "center": "[858,2011]",
+    "key": 3506402
+  }
+]

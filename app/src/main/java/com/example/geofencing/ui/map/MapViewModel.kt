@@ -2,6 +2,7 @@ package com.example.geofencing.ui.map
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.geofencing.data.model.Cart
 import com.example.geofencing.data.model.CartSummary
 import com.example.geofencing.data.model.GeofenceEventInfo
 import com.example.geofencing.data.model.MapMarkerInfo
@@ -9,6 +10,7 @@ import com.example.geofencing.data.model.Sector
 import com.example.geofencing.data.model.SectorDetail
 import com.example.geofencing.data.model.SectorOverview
 import com.example.geofencing.data.model.SectorSearchResult
+import com.example.geofencing.data.repository.CartRepository
 import com.example.geofencing.data.repository.GeofenceEventRepository
 import com.example.geofencing.data.repository.SectorRepository
 import com.example.geofencing.data.repository.SiteRepository
@@ -37,7 +39,8 @@ class MapViewModel @Inject constructor(
     private val siteRepository: SiteRepository,
     private val sectorRepository: SectorRepository,
     private val geofenceEventRepository: GeofenceEventRepository,
-    private val violationAckRepository: ViolationAckRepository
+    private val violationAckRepository: ViolationAckRepository,
+    private val cartRepository: CartRepository
 ) : ViewModel() {
 
     // TODO: 로그인/사이트 선택 플로우가 생기면 고정값 대신 실제 선택된 siteId로 교체.
@@ -60,6 +63,10 @@ class MapViewModel @Inject constructor(
     private val _geofenceEvents = MutableStateFlow<List<GeofenceEventInfo>>(emptyList())
     val geofenceEvents: StateFlow<List<GeofenceEventInfo>> = _geofenceEvents.asStateFlow()
 
+    // Cart 탭 리스트(필터/페이지네이션은 UI에서 처리) - 전체 사이트 카트 목록.
+    private val _cartItems = MutableStateFlow<List<Cart>>(emptyList())
+    val cartItems: StateFlow<List<Cart>> = _cartItems.asStateFlow()
+
     // 마지막으로 확인한 시각 이후에 발생한 이탈 이벤트가 하나라도 있으면 true -
     // Violation 탭 버튼(필터/상단 Cart 탭)에 ic_warning 배지를 띄우는 데 쓰인다.
     val hasUnseenViolation: StateFlow<Boolean> = combine(
@@ -73,7 +80,7 @@ class MapViewModel @Inject constructor(
     val lastRefreshedAt: StateFlow<Instant?> = _lastRefreshedAt.asStateFlow()
 
     // 맨 처음 데이터가 들어왔을 때 모든 섹터가 한 화면에 보이도록 카메라를 맞추기 위한
-    // 경계값. 최초 1회만 채우고 이후 폴링(10초)에서는 다시 갱신하지 않는다 - 매번
+    // 경계값. 최초 1회만 채우고 이후 새로고침(refresh())에서는 다시 갱신하지 않는다 - 매번
     // 갱신하면 사용자가 지도를 보고 있는 도중에 시점이 계속 리셋되어 버린다.
     private val _initialCameraBounds = MutableStateFlow<LatLngBounds?>(null)
     val initialCameraBounds: StateFlow<LatLngBounds?> = _initialCameraBounds.asStateFlow()
@@ -83,13 +90,9 @@ class MapViewModel @Inject constructor(
     val searchResults: StateFlow<List<SectorSearchResult>> = _searchResults.asStateFlow()
 
     init {
-        // 카트는 10초 간격으로 위치를 보고하므로, 사이트 요약/섹터 상세도 같은 주기로 폴링한다.
-        viewModelScope.launch {
-            while (true) {
-                refreshSummary()
-                delay(POLL_INTERVAL_MS)
-            }
-        }
+        // 사이트 요약/섹터 상세는 폴링하지 않는다 - 최초 1회만 불러오고, 이후에는
+        // RefreshStatusRow의 새로고침 버튼(refresh())을 눌렀을 때만 갱신한다.
+        viewModelScope.launch { refreshSummary() }
         // 지오펜스 이탈 이벤트 - 명세대로 10초 주기 폴링.
         viewModelScope.launch {
             while (true) {
@@ -140,11 +143,13 @@ class MapViewModel @Inject constructor(
                     }
                     .map { it.await() }
             }.filterNotNull()
-            summary to details
-        }.onSuccess { (summary, details) ->
+            val carts = fetchAllCarts()
+            Triple(summary, details, carts)
+        }.onSuccess { (summary, details, carts) ->
             _siteCartSummary.value = summary.cartSummary
             _sectorDetails.value = details
             _sectorOverviews.value = summary.sectors
+            _cartItems.value = carts
             _markers.value = summary.sectors.map { overview ->
                 val detail = details.find { it.id == overview.id }
                 Sector(
@@ -163,6 +168,19 @@ class MapViewModel @Inject constructor(
         }
     }
 
+    // Cart 탭은 서버 페이지네이션 대신 클라이언트에서 필터링 후 7개씩 다시 나눠 보여주므로,
+    // 여기서는 전체 페이지를 순회해 사이트의 모든 카트를 한 번에 모은다.
+    private suspend fun fetchAllCarts(): List<Cart> {
+        val firstPage = cartRepository.getCarts(siteId, page = 1, limit = CART_FETCH_LIMIT)
+        if (firstPage.totalPages <= 1) return firstPage.carts
+        val restPages = coroutineScope {
+            (2..firstPage.totalPages)
+                .map { page -> async { cartRepository.getCarts(siteId, page = page, limit = CART_FETCH_LIMIT) } }
+                .map { it.await() }
+        }
+        return firstPage.carts + restPages.flatMap { it.carts }
+    }
+
     // 모든 섹터의 지오펜스 폴리곤 꼭짓점을 다 포함하는 경계 - 핀 위치가 아니라 경계
     // 전체를 기준으로 잡아야 섹터 영역이 화면에서 잘리지 않는다.
     private fun buildBoundsOrNull(points: List<LatLng>): LatLngBounds? {
@@ -175,6 +193,7 @@ class MapViewModel @Inject constructor(
     private companion object {
         const val POLL_INTERVAL_MS = 10_000L
         const val SEARCH_DEBOUNCE_MS = 300L
+        const val CART_FETCH_LIMIT = 50
         val FALLBACK_POSITION = LatLng(0.0, 0.0)
     }
 }

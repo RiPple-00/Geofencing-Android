@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import com.example.geofencing.data.local.violationAckDataStore
+import com.example.geofencing.data.repository.CartRepository
+import com.example.geofencing.data.repository.CartRepositoryImpl
 import com.example.geofencing.data.repository.GeofenceEventRepository
 import com.example.geofencing.data.repository.GeofenceEventRepositoryImpl
 import com.example.geofencing.data.repository.SectorRepository
@@ -47,6 +49,12 @@ abstract class AppModule {
     abstract fun bindViolationAckRepository(
         impl: ViolationAckRepositoryImpl
     ): ViolationAckRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindCartRepository(
+        impl: CartRepositoryImpl
+    ): CartRepository
 
     companion object {
         @Provides

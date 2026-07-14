@@ -60,7 +60,6 @@ import com.example.geofencing.ui.map.slidepanel.StateTabRow
 import com.example.geofencing.ui.map.slidepanel.SlidePanelTab
 import com.example.geofencing.ui.map.slidepanel.cart.CartFilter
 import com.example.geofencing.ui.map.slidepanel.cart.CartFilterTabRow
-import com.example.geofencing.ui.map.slidepanel.cart.CartListItem
 import com.example.geofencing.ui.map.slidepanel.cart.CartListItemCard
 import com.example.geofencing.ui.map.slidepanel.cart.CartListPageSize
 import com.example.geofencing.ui.map.slidepanel.cart.CartPaginationRow
@@ -116,6 +115,7 @@ fun MapScreen(
     val sectorOverviews by viewModel.sectorOverviews.collectAsState()
     val geofenceEvents by viewModel.geofenceEvents.collectAsState()
     val hasUnseenViolation by viewModel.hasUnseenViolation.collectAsState()
+    val cartItems by viewModel.cartItems.collectAsState()
     val lastRefreshedAt by viewModel.lastRefreshedAt.collectAsState()
     val initialCameraBounds by viewModel.initialCameraBounds.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
@@ -150,10 +150,6 @@ fun MapScreen(
         if (selectedCartFilter == CartFilter.VIOLATION) {
             viewModel.acknowledgeViolations()
         }
-    }
-    // TODO: 카트 목록 API가 생기면 더미 데이터를 실제 응답으로 교체.
-    val dummyCartItems = remember {
-        List(10) { index -> CartListItem(id = index + 1, name = "Cart #${index + 1}", violating = index % 3 == 0) }
     }
     val context = LocalContext.current
     val mapProperties = remember {
@@ -460,9 +456,9 @@ fun MapScreen(
                             }
                         }
                         val filteredCartItems = when (selectedCartFilter) {
-                            CartFilter.ALL -> dummyCartItems
-                            CartFilter.VIOLATION -> dummyCartItems.filter { it.violating }
-                            CartFilter.COMPLIANCE -> dummyCartItems.filter { !it.violating }
+                            CartFilter.ALL -> cartItems
+                            CartFilter.VIOLATION -> cartItems.filter { it.violating }
+                            CartFilter.COMPLIANCE -> cartItems.filter { !it.violating }
                         }
                         // 한 페이지 최대 CartListPageSize(7)개, 그 이상은 CartPaginationRow로 분할.
                         val cartPages = filteredCartItems.chunked(CartListPageSize)

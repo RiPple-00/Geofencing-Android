@@ -1,11 +1,16 @@
 package com.example.geofencing.data.remote
 
+import com.example.geofencing.data.model.Cart
+import com.example.geofencing.data.model.CartPage
 import com.example.geofencing.data.model.CartSummary
 import com.example.geofencing.data.model.GeofenceEventInfo
 import com.example.geofencing.data.model.SectorDetail
 import com.example.geofencing.data.model.SectorOverview
 import com.example.geofencing.data.model.SectorSearchResult
 import com.example.geofencing.data.model.SiteSummary
+import com.example.geofencing.data.remote.dto.CartGeofenceStatusDto
+import com.example.geofencing.data.remote.dto.CartListItemDto
+import com.example.geofencing.data.remote.dto.CartListResponseDto
 import com.example.geofencing.data.remote.dto.CartSummaryDto
 import com.example.geofencing.data.remote.dto.GeofenceEventDto
 import com.example.geofencing.data.remote.dto.SectorDetailDto
@@ -56,4 +61,18 @@ fun GeofenceEventDto.toDomain(): GeofenceEventInfo = GeofenceEventInfo(
     sectorId = sectorId,
     occurredAt = Instant.parse(occurredAt),
     location = location.coordinates.toLatLng()
+)
+
+fun CartListItemDto.toDomain(): Cart = Cart(
+    id = id,
+    name = name,
+    violating = geofenceStatus == CartGeofenceStatusDto.VIOLATING
+)
+
+fun CartListResponseDto.toDomain(): CartPage = CartPage(
+    carts = carts.map { it.toDomain() },
+    page = pagination.page,
+    limit = pagination.limit,
+    total = pagination.total,
+    totalPages = pagination.totalPages
 )

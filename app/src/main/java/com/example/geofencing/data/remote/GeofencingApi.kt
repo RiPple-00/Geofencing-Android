@@ -1,5 +1,6 @@
 package com.example.geofencing.data.remote
 
+import com.example.geofencing.data.remote.dto.CartListResponseDto
 import com.example.geofencing.data.remote.dto.GeofenceEventListResponseDto
 import com.example.geofencing.data.remote.dto.SectorDetailDto
 import com.example.geofencing.data.remote.dto.SectorListResponseDto
@@ -33,6 +34,13 @@ interface GeofencingApi {
         @Query("q") query: String,
         @Query("limit") limit: Int? = null
     ): ApiResponse<SectorSearchResponseDto>
+
+    @GET("sites/{siteId}/carts")
+    suspend fun getCarts(
+        @Path("siteId") siteId: Int,
+        @Query("page") page: Int? = null,
+        @Query("limit") limit: Int? = null
+    ): ApiResponse<CartListResponseDto>
 
     @GET("sites/{siteId}/geofence-events")
     suspend fun getGeofenceEvents(
