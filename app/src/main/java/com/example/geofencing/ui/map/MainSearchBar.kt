@@ -33,7 +33,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.geofencing.R
-import com.example.geofencing.data.model.SectorSearchResult
 import com.example.geofencing.ui.theme.Body14
 import com.example.geofencing.ui.theme.DarkBorderDefault
 import com.example.geofencing.ui.theme.DarkBorderStrong
@@ -60,9 +59,8 @@ fun MainSearchBar(
     hazeState: HazeState,
     modifier: Modifier = Modifier,
     onFocusChanged: (Boolean) -> Unit = {},
-    searchResults: List<SectorSearchResult> = emptyList(),
-    resultHasViolation: (SectorSearchResult) -> Boolean = { false },
-    onResultClick: (SectorSearchResult) -> Unit = {}
+    searchResults: List<SearchResultItem> = emptyList(),
+    onResultClick: (SearchResultItem) -> Unit = {}
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
@@ -161,7 +159,6 @@ fun MainSearchBar(
         if (isFocused && searchResults.isNotEmpty()) {
             SearchList(
                 results = searchResults,
-                hasViolation = resultHasViolation,
                 onResultClick = onResultClick,
                 hazeState = hazeState
             )

@@ -240,6 +240,15 @@ fun MapScreen(
         }
     }
 
+    // 검색 결과에서 카트를 눌렀을 때 - 카트는 개별 위치 데이터가 없어 지도 확대는 못 하고,
+    // Cart 탭으로 이동해 이름으로 좁혀서 보여주기만 한다.
+    fun navigateToCartFilteredByName(name: String) {
+        selectedTab = SlidePanelTab.CART
+        cartNameFilter = name
+        sheetHeightPx = cartPeekHeightPx
+        coroutineScope.launch { listState.scrollToItem(0) }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -529,6 +538,27 @@ fun MapScreen(
             )
         }
 
+        // 섹터는 API 검색 결과(searchResults) 그대로, 카트는 이미 로드된 cartItems를
+        // 이름으로 걸러서 - 카트 전용 검색 API가 없어서 클라이언트에서 처리한다.
+        val cartSearchMatches = remember(searchQuery, cartItems) {
+            if (searchQuery.isBlank()) {
+                emptyList()
+            } else {
+                cartItems.filter { it.name.contains(searchQuery, ignoreCase = true) }
+            }
+        }
+        val combinedSearchResults = remember(searchResults, cartSearchMatches, sectorDetails) {
+            searchResults.map { sector ->
+                SearchResultItem.Sector(
+                    id = sector.id,
+                    name = sector.name,
+                    hasViolation = sectorDetails.find { it.id == sector.id }?.cartSummary?.violating?.let { it > 0 } ?: false
+                )
+            } + cartSearchMatches.map { cart ->
+                SearchResultItem.Cart(id = cart.id, name = cart.name, hasViolation = cart.violating)
+            }
+        }
+
         MainSearchBar(
             query = searchQuery,
             onQueryChange = { query ->
@@ -538,23 +568,25 @@ fun MapScreen(
             onHamburgerClick = { /* TODO: 메뉴/사이드패널 동작 확정되면 연결 */ },
             hazeState = hazeState,
             onFocusChanged = { focused -> isSearchFocused = focused },
-            searchResults = searchResults,
-            resultHasViolation = { result ->
-                sectorDetails.find { it.id == result.id }?.cartSummary?.violating?.let { it > 0 } ?: false
-            },
+            searchResults = combinedSearchResults,
             onResultClick = { result ->
-                // 탭 전환 없이 지도 카메라만 해당 섹터로 이동 - Sector 탭으로는 안 넘어간다.
-                sheetHeightPx = peekHeightPx
-                val bounds = sectorOverviews.find { it.id == result.id }?.geofence?.let(::buildBoundsOrNull)
-                coroutineScope.launch {
-                    // 높이만 peek로 바꾸고 스크롤 위치를 그대로 두면, 이전에 아래로
-                    // 스크롤해 놓은 상태였을 때 작아진 시트 안에 엉뚱한(아래쪽) 아이템만
-                    // 보여서 잘린 것처럼 보인다.
-                    listState.scrollToItem(0)
-                    if (bounds != null) {
-                        delay(100)
-                        runCatching {
-                            cameraPositionState.animate(fitCameraUpdate(bounds, peekHeightPx))
+                when (result) {
+                    is SearchResultItem.Cart -> navigateToCartFilteredByName(result.name)
+                    is SearchResultItem.Sector -> {
+                        // 탭 전환 없이 지도 카메라만 해당 섹터로 이동 - Sector 탭으로는 안 넘어간다.
+                        sheetHeightPx = peekHeightPx
+                        val bounds = sectorOverviews.find { it.id == result.id }?.geofence?.let(::buildBoundsOrNull)
+                        coroutineScope.launch {
+                            // 높이만 peek로 바꾸고 스크롤 위치를 그대로 두면, 이전에 아래로
+                            // 스크롤해 놓은 상태였을 때 작아진 시트 안에 엉뚱한(아래쪽) 아이템만
+                            // 보여서 잘린 것처럼 보인다.
+                            listState.scrollToItem(0)
+                            if (bounds != null) {
+                                delay(100)
+                                runCatching {
+                                    cameraPositionState.animate(fitCameraUpdate(bounds, peekHeightPx))
+                                }
+                            }
                         }
                     }
                 }

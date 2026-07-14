@@ -22,7 +22,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.geofencing.R
-import com.example.geofencing.data.model.SectorSearchResult
 import com.example.geofencing.ui.map.slidepanel.ChevronButton
 import com.example.geofencing.ui.theme.DarkBorderFocus
 import com.example.geofencing.ui.theme.DarkBrandPrimary
@@ -37,9 +36,8 @@ import dev.chrisbanes.haze.hazeEffect
 // searchBar와 같은 좌우 16dp 여백을 써서 searchBar 폭 기준 중앙 정렬이 되도록 한다.
 @Composable
 fun SearchList(
-    results: List<SectorSearchResult>,
-    hasViolation: (SectorSearchResult) -> Boolean,
-    onResultClick: (SectorSearchResult) -> Unit,
+    results: List<SearchResultItem>,
+    onResultClick: (SearchResultItem) -> Unit,
     hazeState: HazeState,
     modifier: Modifier = Modifier
 ) {
@@ -61,7 +59,6 @@ fun SearchList(
         results.forEachIndexed { index, result ->
             SearchListItemRow(
                 result = result,
-                hasViolation = hasViolation(result),
                 // 다음 아이템이 있으면 구분선을 보여주고, 마지막 아이템이면 생략.
                 showBottomBorder = index < results.lastIndex,
                 onClick = { onResultClick(result) }
@@ -72,8 +69,7 @@ fun SearchList(
 
 @Composable
 private fun SearchListItemRow(
-    result: SectorSearchResult,
-    hasViolation: Boolean,
+    result: SearchResultItem,
     showBottomBorder: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -108,7 +104,7 @@ private fun SearchListItemRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (hasViolation) {
+                if (result.hasViolation) {
                     Image(
                         painter = painterResource(R.drawable.ic_warning),
                         contentDescription = null,
