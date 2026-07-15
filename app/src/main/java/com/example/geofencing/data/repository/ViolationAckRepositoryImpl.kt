@@ -4,13 +4,14 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
+import com.example.geofencing.di.ViolationAckPreferences
 import java.time.Instant
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 class ViolationAckRepositoryImpl @Inject constructor(
-    private val dataStore: DataStore<Preferences>
+    @ViolationAckPreferences private val dataStore: DataStore<Preferences>
 ) : ViolationAckRepository {
 
     override val lastAcknowledgedAt: Flow<Instant> = dataStore.data.map { prefs ->

@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.geofencing.R
 import com.example.geofencing.data.model.SectorDetail
+import com.example.geofencing.ui.components.InlineRetryNotice
 import com.example.geofencing.ui.map.slidepanel.SlidePanelHeader
 import com.example.geofencing.ui.map.slidepanel.StateTabRow
 import com.example.geofencing.ui.map.slidepanel.SlidePanelTab
@@ -118,6 +119,8 @@ fun MapScreen(
     val hasUnseenViolation by viewModel.hasUnseenViolation.collectAsState()
     val cartItems by viewModel.cartItems.collectAsState()
     val lastRefreshedAt by viewModel.lastRefreshedAt.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val refreshError by viewModel.refreshError.collectAsState()
     val initialCameraBounds by viewModel.initialCameraBounds.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
     val density = LocalDensity.current
@@ -384,8 +387,19 @@ fun MapScreen(
                         item {
                             RefreshStatusRow(
                                 lastRefreshedAt = lastRefreshedAt?.let(::formatLocalTimestamp) ?: "-",
+                                isRefreshing = isRefreshing,
                                 onRefreshClick = viewModel::refresh
                             )
+                        }
+                        // 최초 로드 실패든 수동 새로고침 실패든 같은 자리, 같은 문구+재시도로 안내.
+                        if (refreshError != null) {
+                            item {
+                                InlineRetryNotice(
+                                    message = refreshError.orEmpty(),
+                                    onRetry = viewModel::refresh,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
                         }
                         item {
                             EventCodeSection(

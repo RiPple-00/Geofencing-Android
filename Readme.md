@@ -41,3 +41,10 @@ app/src/main/java/com/example/geofencing
     ├── navigation        # 네비게이션 그래프
     └── theme             # 컬러/타이포그래피/스페이싱 등 공용 테마
 ```
+
+#### 알려진 API 제약 / 필요한 BE 확장
+
+아래 두 항목은 클라이언트만으로는 정확히 해결할 수 없어 BE 계약 변경이 필요합니다.
+
+- `GET /sites/{siteId}/carts`에 `sectorId`, `violating` 필터 쿼리 파라미터가 없습니다. 그래서 클라이언트가 전체 페이지를 미리 다 가져온 뒤 직접 필터링/재-페이지네이션하고 있습니다(`MapViewModel.fetchAllCarts`, `MapScreen`의 `sectorScopedCartItems`/`filteredCartItems`). 필터 파라미터가 추가되면 서버 사이드 페이지네이션으로 전환할 수 있습니다.
+- `CartListItemDto`/`Cart` 도메인 모델에 `sectorId` 필드가 없습니다. 그래서 섹터-카트 연결을 카트 이름에 섹터 이름이 포함되는지로 판단하는 부분 일치 방식으로 처리하고 있습니다(`MapScreen`의 `navigateToCartFilteredBySector`). 동명이거나 명명 규칙이 바뀌면 오작동할 수 있어 ID 기반 관계 필드가 필요합니다.

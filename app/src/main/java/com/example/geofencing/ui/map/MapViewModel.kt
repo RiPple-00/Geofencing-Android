@@ -13,6 +13,7 @@ import com.example.geofencing.data.model.SectorSearchResult
 import com.example.geofencing.data.repository.CartRepository
 import com.example.geofencing.data.repository.GeofenceEventRepository
 import com.example.geofencing.data.repository.SectorRepository
+import com.example.geofencing.data.repository.SelectedSiteRepository
 import com.example.geofencing.data.repository.SiteRepository
 import com.example.geofencing.data.repository.ViolationAckRepository
 import com.example.geofencing.util.poleOfInaccessibilityOrElse
@@ -31,8 +32,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+// 연속 실패 횟수를 계산하는 순수 함수 - 코루틴/딜레이 루프와 분리해서 단위 테스트한다.
+// succeeded면 0으로 리셋, 아니면 이전 값에서 1 증가.
+internal fun nextConsecutivePollFailures(previous: Int, succeeded: Boolean): Int =
+    if (succeeded) 0 else previous + 1
 
 @HiltViewModel
 class MapViewModel @Inject constructor(
@@ -40,11 +47,9 @@ class MapViewModel @Inject constructor(
     private val sectorRepository: SectorRepository,
     private val geofenceEventRepository: GeofenceEventRepository,
     private val violationAckRepository: ViolationAckRepository,
-    private val cartRepository: CartRepository
+    private val cartRepository: CartRepository,
+    private val selectedSiteRepository: SelectedSiteRepository
 ) : ViewModel() {
-
-    // TODO: 로그인/사이트 선택 플로우가 생기면 고정값 대신 실제 선택된 siteId로 교체.
-    private val siteId = 1
 
     private val _markers = MutableStateFlow<List<MapMarkerInfo>>(emptyList())
     val markers: StateFlow<List<MapMarkerInfo>> = _markers.asStateFlow()
@@ -79,6 +84,25 @@ class MapViewModel @Inject constructor(
     private val _lastRefreshedAt = MutableStateFlow<Instant?>(null)
     val lastRefreshedAt: StateFlow<Instant?> = _lastRefreshedAt.asStateFlow()
 
+    // 요약/섹터/카트 갱신(refreshSummary) 진행 상태 - 새로고침 버튼 중복 클릭 방지 등에 쓰인다.
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    // refreshSummary 실패 시 노출할 메시지. 다음 시도 시작 또는 성공 시 null로 클리어된다.
+    // 최초 로드 실패와 수동 새로고침 실패를 구분하는 별도 상태는 두지 않고 이 값 하나로 처리한다.
+    private val _refreshError = MutableStateFlow<String?>(null)
+    val refreshError: StateFlow<String?> = _refreshError.asStateFlow()
+
+    // 현재 검색어에 대한 검색 실패 여부. 새 검색어 입력이나 성공 시 false로 리셋된다.
+    // 디바운스가 다음 입력에서 자연스럽게 재시도하므로 별도 retry 함수는 두지 않는다.
+    private val _searchError = MutableStateFlow(false)
+    val searchError: StateFlow<Boolean> = _searchError.asStateFlow()
+
+    // 지오펜스 이벤트 폴링이 연속으로 실패 중인지 - 아직 UI에는 연결하지 않고 내부 기록용으로만 둔다.
+    private var consecutivePollFailures = 0
+    private val _hasPollFailure = MutableStateFlow(false)
+    val hasPollFailure: StateFlow<Boolean> = _hasPollFailure.asStateFlow()
+
     // 맨 처음 데이터가 들어왔을 때 모든 섹터가 한 화면에 보이도록 카메라를 맞추기 위한
     // 경계값. 최초 1회만 채우고 이후 새로고침(refresh())에서는 다시 갱신하지 않는다 - 매번
     // 갱신하면 사용자가 지도를 보고 있는 도중에 시점이 계속 리셋되어 버린다.
@@ -93,11 +117,14 @@ class MapViewModel @Inject constructor(
         // 사이트 요약/섹터 상세는 폴링하지 않는다 - 최초 1회만 불러오고, 이후에는
         // RefreshStatusRow의 새로고침 버튼(refresh())을 눌렀을 때만 갱신한다.
         viewModelScope.launch { refreshSummary() }
-        // 지오펜스 이탈 이벤트 - 명세대로 10초 주기 폴링.
+        // 지오펜스 이탈 이벤트 - 명세대로 10초 주기 폴링. siteId는 반복마다 한 번씩 새로 읽는다.
         viewModelScope.launch {
             while (true) {
-                runCatching { geofenceEventRepository.getRecentEvents(siteId) }
-                    .onSuccess { _geofenceEvents.value = it }
+                val siteId = selectedSiteRepository.selectedSiteId.first()
+                val result = runCatching { geofenceEventRepository.getRecentEvents(siteId) }
+                result.onSuccess { _geofenceEvents.value = it }
+                consecutivePollFailures = nextConsecutivePollFailures(consecutivePollFailures, result.isSuccess)
+                _hasPollFailure.value = consecutivePollFailures > 0
                 delay(POLL_INTERVAL_MS)
             }
         }
@@ -107,14 +134,7 @@ class MapViewModel @Inject constructor(
             // StateFlow는 이미 동일 값 연속 방출을 걸러주므로 distinctUntilChanged가 불필요.
             searchQuery
                 .debounce(SEARCH_DEBOUNCE_MS)
-                .collectLatest { query ->
-                    if (query.isBlank()) {
-                        _searchResults.value = emptyList()
-                        return@collectLatest
-                    }
-                    runCatching { sectorRepository.searchSectors(siteId, query) }
-                        .onSuccess { _searchResults.value = it }
-                }
+                .collectLatest { query -> performSearch(query) }
         }
     }
 
@@ -123,6 +143,7 @@ class MapViewModel @Inject constructor(
     }
 
     // RefreshStatusRow의 새로고침 버튼에서 호출 - 폴링을 기다리지 않고 즉시 갱신.
+    // 최초 로드 실패 후 재시도할 때도 이 함수를 그대로 재사용한다.
     fun refresh() {
         viewModelScope.launch { refreshSummary() }
     }
@@ -133,7 +154,27 @@ class MapViewModel @Inject constructor(
         viewModelScope.launch { violationAckRepository.acknowledgeNow() }
     }
 
+    private suspend fun performSearch(query: String) {
+        _searchError.value = false
+        if (query.isBlank()) {
+            _searchResults.value = emptyList()
+            return
+        }
+        val siteId = selectedSiteRepository.selectedSiteId.first()
+        runCatching { sectorRepository.searchSectors(siteId, query) }
+            .onSuccess {
+                _searchResults.value = it
+                _searchError.value = false
+            }
+            .onFailure { _searchError.value = true }
+    }
+
     private suspend fun refreshSummary() {
+        _isRefreshing.value = true
+        _refreshError.value = null
+        // 이 실행 안의 모든 요청(요약/섹터 상세/카트)이 동일한 siteId를 쓰도록 시작 시점에 한 번만 읽는다 -
+        // 실행 도중 선택된 사이트가 바뀌어도 한 사이트의 데이터끼리만 섞이게 한다.
+        val siteId = selectedSiteRepository.selectedSiteId.first()
         runCatching {
             val summary = siteRepository.getSiteSummary(siteId)
             val details = coroutineScope {
@@ -143,7 +184,7 @@ class MapViewModel @Inject constructor(
                     }
                     .map { it.await() }
             }.filterNotNull()
-            val carts = fetchAllCarts()
+            val carts = fetchAllCarts(siteId)
             Triple(summary, details, carts)
         }.onSuccess { (summary, details, carts) ->
             _siteCartSummary.value = summary.cartSummary
@@ -165,12 +206,15 @@ class MapViewModel @Inject constructor(
                 _initialCameraBounds.value = buildBoundsOrNull(summary.sectors.flatMap { it.geofence })
             }
             _lastRefreshedAt.value = Instant.now()
+        }.onFailure {
+            _refreshError.value = REFRESH_ERROR_MESSAGE
         }
+        _isRefreshing.value = false
     }
 
     // Cart 탭은 서버 페이지네이션 대신 클라이언트에서 필터링 후 7개씩 다시 나눠 보여주므로,
     // 여기서는 전체 페이지를 순회해 사이트의 모든 카트를 한 번에 모은다.
-    private suspend fun fetchAllCarts(): List<Cart> {
+    private suspend fun fetchAllCarts(siteId: Int): List<Cart> {
         val firstPage = cartRepository.getCarts(siteId, page = 1, limit = CART_FETCH_LIMIT)
         if (firstPage.totalPages <= 1) return firstPage.carts
         val restPages = coroutineScope {
@@ -194,6 +238,7 @@ class MapViewModel @Inject constructor(
         const val POLL_INTERVAL_MS = 10_000L
         const val SEARCH_DEBOUNCE_MS = 300L
         const val CART_FETCH_LIMIT = 50
+        const val REFRESH_ERROR_MESSAGE = "데이터를 불러오지 못했습니다"
         val FALLBACK_POSITION = LatLng(0.0, 0.0)
     }
 }

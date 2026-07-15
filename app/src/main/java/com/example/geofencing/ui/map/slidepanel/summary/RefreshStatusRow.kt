@@ -31,6 +31,7 @@ import com.example.geofencing.ui.theme.RoundedMd
 fun RefreshStatusRow(
     modifier: Modifier = Modifier,
     lastRefreshedAt: String = "-",
+    isRefreshing: Boolean = false,
     onRefreshClick: () -> Unit = {}
 ) {
     Row(
@@ -49,17 +50,18 @@ fun RefreshStatusRow(
             color = DarkTextSecondary
         )
         Spacer(modifier = Modifier.width(8.dp))
-        RefreshButton(onClick = onRefreshClick)
+        // 진행 중에는 비활성화해서 중복 새로고침 요청을 막는다.
+        RefreshButton(enabled = !isRefreshing, onClick = onRefreshClick)
     }
 }
 
 @Composable
-private fun RefreshButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun RefreshButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     Box(
         modifier = modifier
             .size(32.dp)
             .border(width = 1.dp, color = DarkBorderDefault, shape = RoundedCornerShape(RoundedMd))
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Image(

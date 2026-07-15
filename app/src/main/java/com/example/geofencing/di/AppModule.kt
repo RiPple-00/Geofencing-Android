@@ -3,6 +3,7 @@ package com.example.geofencing.di
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import com.example.geofencing.data.local.selectedSiteDataStore
 import com.example.geofencing.data.local.violationAckDataStore
 import com.example.geofencing.data.repository.CartRepository
 import com.example.geofencing.data.repository.CartRepositoryImpl
@@ -10,6 +11,8 @@ import com.example.geofencing.data.repository.GeofenceEventRepository
 import com.example.geofencing.data.repository.GeofenceEventRepositoryImpl
 import com.example.geofencing.data.repository.SectorRepository
 import com.example.geofencing.data.repository.SectorRepositoryImpl
+import com.example.geofencing.data.repository.SelectedSiteRepository
+import com.example.geofencing.data.repository.SelectedSiteRepositoryImpl
 import com.example.geofencing.data.repository.SiteRepository
 import com.example.geofencing.data.repository.SiteRepositoryImpl
 import com.example.geofencing.data.repository.ViolationAckRepository
@@ -56,10 +59,23 @@ abstract class AppModule {
         impl: CartRepositoryImpl
     ): CartRepository
 
+    @Binds
+    @Singleton
+    abstract fun bindSelectedSiteRepository(
+        impl: SelectedSiteRepositoryImpl
+    ): SelectedSiteRepository
+
     companion object {
         @Provides
         @Singleton
+        @ViolationAckPreferences
         fun provideViolationAckDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
             context.violationAckDataStore
+
+        @Provides
+        @Singleton
+        @SelectedSitePreferences
+        fun provideSelectedSiteDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
+            context.selectedSiteDataStore
     }
 }
