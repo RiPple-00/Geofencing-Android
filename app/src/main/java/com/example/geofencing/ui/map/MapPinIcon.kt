@@ -14,9 +14,8 @@ import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.dp
 import com.example.geofencing.ui.theme.DarkFillPrimary
 
-// 피그마 "Map pin" 실측 SVG(11x17 viewBox) 그대로: 원(circle) + 하단 stem(round cap 선).
-// fill(#2D3137, DarkFillPrimary)은 원에만 적용되는 고정값. 원의 stroke와 stem 선 색은
-// 둘 다 상태(critical 등)에 따라 같이 바뀐다.
+// 피그마 "Map pin" 실측 SVG(11x17 viewBox) 그대로: fill(DarkFillPrimary)은 원에만 적용되는
+// 고정값이고, 원의 stroke와 stem 선 색은 상태(critical 등)에 따라 같이 바뀐다.
 //
 // 주의: path/line 좌표는 SVG 원본 단위(raw unit) 그대로 쓰고, scale(density)로 한 번에
 // 픽셀로 변환한다. 예전엔 line만 .dp.toPx()로 밀도를 적용해서 원과 선이 서로 다른

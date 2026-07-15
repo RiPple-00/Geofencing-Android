@@ -7,16 +7,10 @@ import kotlin.math.sqrt
 
 private const val SQRT2 = 1.4142135623730951
 
-// Mapbox의 polylabel 알고리즘(Pole of Inaccessibility) 포팅.
-// 폴리곤 "안에서 경계로부터 가장 먼 점"을 찾는다 - 오목(concave)하거나 ㄷ자/L자 모양의
-// 골프장 경계에서도 항상 폴리곤 내부의 점을 보장한다는 점이 단순 꼭짓점 평균(centroid)과
-// 다르다(꼭짓점 평균은 오목한 모양에서 폴리곤 바깥으로 벗어날 수 있음).
-//
-// 경위도를 평면 x/y 좌표처럼 취급하는 근사를 쓴다 - 골프장처럼 좁은 범위에서는 오차가
-// 무시할 수준이라 문제 없다.
-//
-// precision 단위는 경위도(도)와 동일 - 기본값 1e-6도(적도 기준 약 0.11m)면 핀 위치
-// 용도로 충분히 정밀하다.
+// Mapbox의 polylabel 알고리즘(Pole of Inaccessibility) 포팅 - 폴리곤 "안에서 경계로부터
+// 가장 먼 점"을 찾아, 오목(ㄷ/L자)한 골프장 경계에서도 centroid와 달리 항상 폴리곤 내부의
+// 점을 보장한다. 좁은 범위라 경위도를 평면 x/y로 근사해도 오차는 무시할 수준.
+// precision 기본값 1e-6도(약 0.11m)는 핀 위치 용도로 충분히 정밀하다.
 fun List<LatLng>.poleOfInaccessibilityOrElse(fallback: LatLng, precision: Double = 1e-6): LatLng {
     if (size < 3) return firstOrNull() ?: fallback
 

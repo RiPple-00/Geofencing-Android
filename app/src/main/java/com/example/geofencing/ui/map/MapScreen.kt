@@ -512,7 +512,6 @@ fun MapScreen(
                             CartFilter.VIOLATION -> sectorScopedCartItems.filter { it.violating }
                             CartFilter.COMPLIANCE -> sectorScopedCartItems.filter { !it.violating }
                         }
-                        // 한 페이지 최대 CartListPageSize(7)개, 그 이상은 CartPaginationRow로 분할.
                         val cartPages = filteredCartItems.chunked(CartListPageSize)
                         val cartPageCount = cartPages.size.coerceAtLeast(1)
                         val pagedCartItems = cartPages.getOrElse(cartPage) { emptyList() }

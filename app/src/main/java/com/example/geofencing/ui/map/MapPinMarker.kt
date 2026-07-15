@@ -30,7 +30,7 @@ import com.google.maps.android.compose.rememberUpdatedMarkerState
 // Sector든 Cart든 MapMarkerInfo만 구현하면 그대로 렌더링되는 공용 핀.
 // 카드 + 하단 Map pin 아이콘을 하나로 묶어서 anchor(0.5, 1)를 핀 끝 중심에 맞춘다.
 // 카드 border 기본값은 text/primary, 핀 border 기본값은 text/secondary(SVG 실측값) — 서로 다름에 유의.
-// 둘 다 isCritical일 때만 critical/primary로 분기. 상태 종류가 늘어나면 Boolean 대신 enum으로 교체.
+// 둘 다 isCritical일 때만 critical/primary로 분기.
 private val CardCornerRadius = 5.90097.dp
 
 @Composable

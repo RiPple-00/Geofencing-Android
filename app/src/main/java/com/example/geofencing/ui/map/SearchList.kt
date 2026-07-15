@@ -59,7 +59,6 @@ fun SearchList(
         results.forEachIndexed { index, result ->
             SearchListItemRow(
                 result = result,
-                // 다음 아이템이 있으면 구분선을 보여주고, 마지막 아이템이면 생략.
                 showBottomBorder = index < results.lastIndex,
                 onClick = { onResultClick(result) }
             )
