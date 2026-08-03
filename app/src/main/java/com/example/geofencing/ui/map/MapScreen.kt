@@ -70,9 +70,7 @@ import com.example.geofencing.ui.map.slidepanel.sector.SectorDetailCard
 import com.example.geofencing.ui.map.slidepanel.sector.SectorListItemCard
 import com.example.geofencing.ui.map.slidepanel.sector.SectorPageIndicator
 import com.example.geofencing.ui.map.slidepanel.summary.AllCartSummaryRow
-import com.example.geofencing.ui.map.slidepanel.summary.DrivingStatusCard
 import com.example.geofencing.ui.map.slidepanel.summary.EventCodeSection
-import com.example.geofencing.ui.map.slidepanel.summary.GeoFencingStatusCard
 import com.example.geofencing.ui.map.slidepanel.summary.RefreshStatusRow
 import com.example.geofencing.ui.theme.Body14
 import com.example.geofencing.ui.theme.DarkBackground
@@ -176,7 +174,9 @@ fun MapScreen(
     val fadeHeightPx = with(density) { 227.84.dp.toPx() }
     val navigationBarBottomDp = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val navigationBarBottomPx = with(density) { navigationBarBottomDp.toPx() }
-    val topContentPaddingDp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + SEARCH_BAR_HEIGHT_DP
+    // The opaque header now occupies the top of the screen, so the map area below it needs no
+    // top inset (nothing overlays the map's own top edge anymore).
+    val topContentPaddingDp = 0.dp
     val topContentPaddingPx = with(density) { topContentPaddingDp.toPx() }
     val summaryPeekHeightPx = with(density) { 279.dp.toPx() } + navigationBarBottomPx
     val sectorPeekHeightPx = with(density) { 384.dp.toPx() } + navigationBarBottomPx
@@ -252,14 +252,21 @@ fun MapScreen(
         coroutineScope.launch { listState.scrollToItem(0) }
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .onGloballyPositioned { coordinates ->
-                screenHeightPx = coordinates.size.height.toFloat()
-                screenWidthPx = coordinates.size.width.toFloat()
-            }
-    ) {
+    Column(modifier = modifier.fillMaxSize()) {
+        MapTopHeader(
+            title = "Geofence",
+            sectorNames = sectorOverviews.map { it.name },
+            onActionClick = { /* TODO: hook up the header action (menu / side panel). */ }
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .onGloballyPositioned { coordinates ->
+                    screenHeightPx = coordinates.size.height.toFloat()
+                    screenWidthPx = coordinates.size.width.toFloat()
+                }
+        ) {
         GoogleMap(
             modifier = Modifier
                 .fillMaxSize()
@@ -407,21 +414,6 @@ fun MapScreen(
                                 events = geofenceEvents.map { event ->
                                     "Cart #${event.cartId} GPS Violation (Sector #${event.sectorId})"
                                 }
-                            )
-                        }
-                        item {
-                            DrivingStatusCard(
-                                modifier = Modifier.padding(top = 16.dp),
-                                driving = siteCartSummary?.driving ?: 0,
-                                idle = siteCartSummary?.idle ?: 0
-                            )
-                        }
-                        item {
-                            // 하단 여백은 LazyColumn의 contentPadding(68dp)이 담당.
-                            GeoFencingStatusCard(
-                                modifier = Modifier.padding(top = 16.dp),
-                                compliant = siteCartSummary?.compliant ?: 0,
-                                violating = siteCartSummary?.violating ?: 0
                             )
                         }
                     }
@@ -572,6 +564,10 @@ fun MapScreen(
             }
         }
 
+        // Search is not part of the current design. The bar and all its wiring are kept intact
+        // (see MainSearchBar.kt) but gated off so it never renders. Flip showSearchBar to restore it.
+        val showSearchBar = false
+        if (showSearchBar) {
         MainSearchBar(
             query = searchQuery,
             onQueryChange = { query ->
@@ -607,6 +603,7 @@ fun MapScreen(
             },
             modifier = Modifier.align(Alignment.TopCenter)
         )
+        }
 
         // 하단 내비게이션 바(뒤로가기/홈/최근 앱) 영역의 배경 - 슬라이드 패널 높이 계산과
         // 무관하게 항상 이 영역을 덮도록, 검색창처럼 Box의 마지막 자식(최상단 z-index)으로 고정.
@@ -617,6 +614,7 @@ fun MapScreen(
                 .height(navigationBarBottomDp)
                 .background(DarkBackground)
         )
+        }
     }
 }
 
