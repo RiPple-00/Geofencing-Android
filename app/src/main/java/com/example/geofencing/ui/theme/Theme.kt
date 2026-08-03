@@ -30,22 +30,19 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = LightPrimary,
-    onPrimary = LightOnPrimary,
-    primaryContainer = LightPrimaryContainer,
-    onPrimaryContainer = LightOnPrimaryContainer,
-    secondary = LightSecondary,
-    onSecondary = LightOnSecondary,
-    tertiary = LightTertiary,
-    onTertiary = LightOnTertiary,
+    primary = LightBrandPrimary,
+    onPrimary = LightFillHighest,
+    secondary = LightFillSecondary,
+    onSecondary = LightTextPrimary,
     background = LightBackground,
-    onBackground = LightOnBackground,
-    surface = LightSurface,
-    onSurface = LightOnSurface,
-    onSurfaceVariant = LightOnSurfaceVariant,
-    outline = LightOutline,
-    error = LightError,
-    onError = LightOnError
+    onBackground = LightTextPrimary,
+    surface = LightFillPrimary,
+    onSurface = LightTextPrimary,
+    onSurfaceVariant = LightTextSecondary,
+    outline = LightBorderStrong,
+    outlineVariant = LightBorderDefault,
+    error = LightCriticalPrimary,
+    onError = LightFillLowest
 )
 
 @Composable

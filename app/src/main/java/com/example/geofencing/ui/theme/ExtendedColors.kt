@@ -5,7 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-// 디자인 파일의 시맨틱 토큰(fill/text/border/critical/warning/brand)을
+// 디자인 파일의 시맨틱 토큰(fill/text/border/critical/brand)을
 // M3 ColorScheme 역할명과 분리해서 그대로 노출하는 레이어.
 // 화면/컴포넌트에서는 MaterialTheme.extendedColors.xxx 로 접근한다.
 data class ExtendedColors(
@@ -17,7 +17,6 @@ data class ExtendedColors(
     val textSecondary: Color,
     val textDisabled: Color,
     val criticalPrimary: Color,
-    val warningPrimary: Color,
     val brandPrimary: Color,
     val borderDefault: Color,
     val borderStrong: Color,
@@ -34,7 +33,6 @@ val DarkExtendedColors = ExtendedColors(
     textSecondary = DarkTextSecondary,
     textDisabled = DarkTextDisabled,
     criticalPrimary = DarkCriticalPrimary,
-    warningPrimary = DarkWarningPrimary,
     brandPrimary = DarkBrandPrimary,
     borderDefault = DarkBorderDefault,
     borderStrong = DarkBorderStrong,
