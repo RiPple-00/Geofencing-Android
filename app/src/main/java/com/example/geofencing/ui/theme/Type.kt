@@ -28,13 +28,28 @@ private val CenteredLineHeight = LineHeightStyle(
 )
 private val NoFontPadding = PlatformTextStyle(includeFontPadding = false)
 
-// 디자인 파일의 텍스트 스타일 토큰 (실측값)
-// TODO: 나머지 스타일(header/24, caption/* 등)이 확정되면 계속 추가하세요.
+// 디자인 파일의 텍스트 스타일 토큰
 val Header20 = TextStyle(
     fontFamily = Pretendard,
     fontWeight = FontWeight.SemiBold,
     fontSize = 20.sp,
     lineHeight = 24.sp,
+    platformStyle = NoFontPadding,
+    lineHeightStyle = CenteredLineHeight
+)
+val Header24 = TextStyle(
+    fontFamily = Pretendard,
+    fontWeight = FontWeight.SemiBold,
+    fontSize = 24.sp,
+    lineHeight = 31.2.sp,
+    platformStyle = NoFontPadding,
+    lineHeightStyle = CenteredLineHeight
+)
+val Body12 = TextStyle(
+    fontFamily = Pretendard,
+    fontWeight = FontWeight.Normal,
+    fontSize = 12.sp,
+    lineHeight = 16.8.sp,
     platformStyle = NoFontPadding,
     lineHeightStyle = CenteredLineHeight
 )
@@ -78,6 +93,17 @@ val Label16 = TextStyle(
     platformStyle = NoFontPadding,
     lineHeightStyle = CenteredLineHeight
 )
+// 카드/섹션 타이틀용
+// Label16(16/16)과 lineHeight 비율이 달라 별도 토큰.
+// StatusCardContainer의 사설 StatusCardTitleStyle과 동일 값
+val Title16 = TextStyle(
+    fontFamily = Pretendard,
+    fontWeight = FontWeight.Medium,
+    fontSize = 16.sp,
+    lineHeight = 19.2.sp,
+    platformStyle = NoFontPadding,
+    lineHeightStyle = CenteredLineHeight
+)
 val Label18 = TextStyle(
     fontFamily = Pretendard,
     fontWeight = FontWeight.Medium,
@@ -103,8 +129,7 @@ val Body10 = TextStyle(
     lineHeightStyle = CenteredLineHeight
 )
 
-// 이름 없이 리터럴로 온 스타일(fontSize 12/lineHeight 21.6/weight 400) - 큰 숫자 옆
-// "Unit" 접미사용. Summary/Sector 양쪽에서 재사용되어 공용 토큰으로 승격.
+// 이름 없이 리터럴로 온 스타일(fontSize 12/lineHeight 21.6/weight 400) - Summary/Sector 양쪽에서 재사용되어 공용 토큰으로 승격.
 val UnitSuffixStyle = TextStyle(
     fontFamily = Pretendard,
     fontWeight = FontWeight.Normal,
@@ -117,7 +142,7 @@ val UnitSuffixStyle = TextStyle(
 
 // M3 표준 컴포넌트(TopAppBar, Button, TextField 등)가 참조하는 Typography.
 // 실측값이 있는 역할은 위 raw 토큰을 그대로 재사용하고, 대응 값이 없는 역할은
-// Pretendard 폰트만 맞춘 임시값을 쓴다(TODO 표시, 실측값 확정 시 교체).
+// Pretendard 폰트만 맞춘 임시값을 쓴다
 val Typography = Typography(
     // 제목 - header/20 하나만 확정. Medium/Small은 아직 디자인 값 없음(TODO)
     titleLarge = Header20,

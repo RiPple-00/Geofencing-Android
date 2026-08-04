@@ -8,10 +8,17 @@ val CardContentPaddingTop = 12.5.dp
 val CardContentPaddingBottom = 12.5.dp
 val CardContentPaddingEnd = 8.dp
 
-// 인풋 필드 내부 여백 (실측값, 피그마 변수명 그대로. px3/pyMd 원본은 "12.dp.dp" 오타로 보여 12.dp로 정리)
+// 인풋 필드 내부 여백 (실측값, 피그마 변수명 그대로)
 val Px3 = 12.dp
 val PyMd = 12.dp
 
 // SlidePanel(Summary/Sector/Cart 탭 전체)이 공유하는 좌우 공통 여백. StateTabRow, 카드류가
 // 전부 이 값을 기준으로 정렬된다.
 val SlidePanelHorizontalMargin = 16.dp
+
+// Figma 스페이싱 스케일 토큰 (기준값 4dp)
+val Space05 = 2.dp
+val Space2 = 8.dp
+
+// 버튼 좌우 여백 (Figma button_spacing).
+val ButtonSpacing = 12.dp
