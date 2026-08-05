@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -45,6 +46,10 @@ sealed interface CartStatStyle {
 private val HeaderColumnWidth = 94.dp
 private val CardViolationWidth = 61.dp
 
+// 스타일별 행 좌우 여백: Header(Whole Carts/Compliance)=8, Card(Whole Cart)=0.
+private val HeaderRowHorizontalPadding = 8.dp
+private val CardRowHorizontalPadding = 0.dp
+
 // 라벨+수치 3열 통계. MapScreen의 SlidePanel Sector item(SectorDetailCard의 SectorStatColumn)을 응용.
 // 색은 값/역할/스타일에 따라 컴포넌트가 결정
 @Composable
@@ -53,8 +58,14 @@ fun CartStatRow(
     style: CartStatStyle,
     modifier: Modifier = Modifier
 ) {
+    val horizontalPadding = when (style) {
+        CartStatStyle.Header -> HeaderRowHorizontalPadding
+        CartStatStyle.Card -> CardRowHorizontalPadding
+    }
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = horizontalPadding),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top
     ) {

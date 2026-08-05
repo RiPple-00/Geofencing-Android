@@ -6,7 +6,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.geofencing.ui.map.MapScreen
+import com.example.geofencing.ui.home.HomeScreen
+import com.example.geofencing.ui.wholesector.SampleSectorNames
+import com.example.geofencing.ui.wholesector.sampleWholeSectorState
 
 // TODO: Login, Loading 화면 구현되면 시작 지점을 Loading -> (로그인 여부에 따라) Login/Main 으로 변경
 sealed class Screen(val route: String) {
@@ -24,7 +26,11 @@ fun GeofencingNavHost(
         modifier = modifier
     ) {
         composable(Screen.Main.route) {
-            MapScreen()
+            // TODO: ViewModel에서 실제 데이터 주입. 지금은 임시 샘플로 새 UI(HomeScreen) 확인.
+            HomeScreen(
+                sectorNames = SampleSectorNames,
+                wholeSectorState = sampleWholeSectorState()
+            )
         }
     }
 }

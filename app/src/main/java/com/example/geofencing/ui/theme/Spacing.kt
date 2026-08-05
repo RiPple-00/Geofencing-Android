@@ -22,3 +22,6 @@ val Space2 = 8.dp
 
 // 버튼 좌우 여백 (Figma button_spacing).
 val ButtonSpacing = 12.dp
+
+// 새 페이지 구조 공용 좌우 여백. 셸이 아니라 각 페이지가 자기 콘텐츠에 적용(지도 등 full-bleed 예외 허용).
+val PageHorizontalMargin = 16.dp

@@ -45,6 +45,14 @@ val Header24 = TextStyle(
     platformStyle = NoFontPadding,
     lineHeightStyle = CenteredLineHeight
 )
+val Header30 = TextStyle(
+    fontFamily = Pretendard,
+    fontWeight = FontWeight.Normal,
+    fontSize = 30.sp,
+    lineHeight = 39.sp,
+    platformStyle = NoFontPadding,
+    lineHeightStyle = CenteredLineHeight
+)
 val Body12 = TextStyle(
     fontFamily = Pretendard,
     fontWeight = FontWeight.Normal,

@@ -25,7 +25,7 @@ import com.example.geofencing.ui.theme.extendedColors
 private val SectionTitleToItemsGap = 24.5.dp
 
 // 섹션 = [타이틀 줄: 제목(좌) + 수량(우)] + [아이템 슬롯]. Violation / Disconnect / Sector List 공용.
-// 제목/수량 양식만 이 컴포넌트가 고정하고, 아이템은 호출부가 슬롯으로 넣는다(StatusListRow 등).
+// 제목/수량 양식만 이 컴포넌트가 고정하고, 아이템은 호출부가 슬롯으로 넘김
 // count/unit은 "3 Carts", "3 Sectors"처럼 숫자+단위로 표기(디자인상 복수형 처리는 없음).
 @Composable
 fun ListSection(

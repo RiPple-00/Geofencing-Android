@@ -113,7 +113,7 @@ fun StatusListRow(
             }
 
             Image(
-                painter = painterResource(R.drawable.ic_arrow_right),
+                painter = painterResource(R.drawable.ic_arrow_right_16),
                 contentDescription = null,
                 colorFilter = ColorFilter.tint(colors.borderStrong),
                 modifier = Modifier

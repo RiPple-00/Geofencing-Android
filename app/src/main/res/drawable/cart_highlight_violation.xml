@@ -1,0 +1,12 @@
+<!-- 지도에서 강조되는 카트(Violation)의 글로우 원. 블러(filter: blur ~1.09px)는 shape에서
+     지원되지 않아 생략 - 필요하면 표시 시 Modifier.blur(1.dp)로 적용. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#4DEF4444" />
+    <stroke
+        android:width="2.731dp"
+        android:color="#80EF4444" />
+    <size
+        android:width="84.108dp"
+        android:height="84.108dp" />
+</shape>
