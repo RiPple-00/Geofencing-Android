@@ -1,7 +1,7 @@
 package com.example.geofencing.ui.cart
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +23,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.movableContentOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -36,6 +38,11 @@ import androidx.compose.ui.unit.dp
 import com.example.geofencing.R
 import com.example.geofencing.ui.components.BackButton
 import com.example.geofencing.ui.components.MapExpandButton
+import com.example.geofencing.ui.components.MapReduceButton
+import com.example.geofencing.ui.map.CartMarker
+import com.example.geofencing.ui.map.GeofenceMapContent
+import com.example.geofencing.ui.map.LiveGeofenceMap
+import com.example.geofencing.ui.map.MapCamera
 import com.example.geofencing.ui.components.SectionDivider
 import com.example.geofencing.ui.components.StatusBadge
 import com.example.geofencing.ui.components.StatusKind
@@ -50,7 +57,12 @@ import com.example.geofencing.ui.theme.Label18
 import com.example.geofencing.ui.theme.PageHorizontalMargin
 import com.example.geofencing.ui.theme.Title16
 import com.example.geofencing.ui.theme.extendedColors
+import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import kotlin.math.log2
 
 // 위반 카트 전용 상세(위반일 때만 non-null).
 data class ViolationDetail(
@@ -72,11 +84,20 @@ data class CartUiState(
     val geofenceStatus: StatusKind,
     val timestamp: String,
     val address: String,
-    val violation: ViolationDetail? = null
+    val violation: ViolationDetail? = null,
+    // 지도용: 섹터 geofence + 카트들(실시간 위치). 이 카트(cartName)가 중앙 추적·강조된다.
+    val geofence: List<LatLng> = emptyList(),
+    val carts: List<CartMarker> = emptyList()
 )
 
-// TODO(측정): 페이지 레벨 실측값. 지금은 임시 추정치.
 private val CartMapHeight = 273.dp
+// inline 지도 줌(카트 타이트 추적). TODO(측정): 실제 값 확정.
+private const val CartFollowZoom = 17f
+// fullscreen은 inline 대비 1.2배 확대(줌 레벨은 로그 스케일이라 log2).
+private val CartFullscreenZoom = CartFollowZoom + log2(1.2f)
+// fullscreen 제스처 확대/축소 한계: 100%(=inline, 축소 최대) ~ 300%(확대 최대).
+private val CartMinZoom = CartFollowZoom
+private val CartMaxZoom = CartFollowZoom + log2(3f)
 private val MapToTitleGap = 32.dp
 private val TitleToIdGap = 14.dp
 private val SectionGap = 32.dp
@@ -106,6 +127,44 @@ fun CartPage(
 ) {
     val colors = MaterialTheme.extendedColors
     val disconnected = state.geofenceStatus == StatusKind.Disconnect
+    var mapExpanded by remember { mutableStateOf(false) }
+    BackHandler(enabled = mapExpanded) { mapExpanded = false }
+
+    // 이 카트를 중앙 추적·강조. inline·fullscreen이 동일 content/카메라 공유.
+    val mapContent = GeofenceMapContent(
+        geofence = state.geofence,
+        carts = state.carts,
+        selectedCartId = state.cartName
+    )
+    // 지도를 한 번만 생성해 inline↔fullscreen 위치 사이를 "이동"(재생성 X → 확대 시 깜빡임 방지).
+    // zoom/제스처를 파라미터로 받아 inline·fullscreen에서 다르게 적용.
+    val movableMap = remember {
+        movableContentOf<GeofenceMapContent, String, Float, Boolean> { content, cartId, zoom, gestures ->
+            LiveGeofenceMap(
+                content = content,
+                camera = MapCamera.FollowCart(cartId, zoom),
+                modifier = Modifier.fillMaxSize(),
+                gesturesEnabled = gestures,
+                minZoom = CartMinZoom,
+                maxZoom = CartMaxZoom
+            )
+        }
+    }
+
+    // fullscreen: 크롬(헤더/탭) 아래 body를 지도로 채움. inline 대비 1.2배 줌 + 제스처(확대/축소·이동) 허용.
+    if (mapExpanded) {
+        Box(modifier = modifier.fillMaxSize()) {
+            movableMap(mapContent, state.cartName, CartFullscreenZoom, true)
+            MapReduceButton(
+                onClick = { mapExpanded = false },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp)
+            )
+        }
+        return
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -119,8 +178,23 @@ fun CartPage(
             onBack = onBack
         )
 
-        // 지도 배너 full-bleed. TODO: 라이브 지도(선택 카트 중심)로 교체.
-        CartMapBanner(onExpandMap = onExpandMap)
+        // 지도 배너 full-bleed(선택 카트 중심 라이브 지도) + 확대 버튼.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(CartMapHeight)
+        ) {
+            movableMap(mapContent, state.cartName, CartFollowZoom, false)
+            MapExpandButton(
+                onClick = {
+                    mapExpanded = true
+                    onExpandMap()
+                },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp)
+            )
+        }
 
         Column(modifier = Modifier.padding(horizontal = PageHorizontalMargin)) {
             Spacer(modifier = Modifier.height(MapToTitleGap))
@@ -212,24 +286,6 @@ private fun Breadcrumb(
     }
 }
 
-// 지도 배너 + 확대 버튼. TODO: 라이브 지도(GeofenceMap, 선택 카트 중심)로 교체.
-@Composable
-private fun CartMapBanner(onExpandMap: () -> Unit, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(CartMapHeight)
-            .background(MaterialTheme.extendedColors.fillPrimary)
-    ) {
-        MapExpandButton(
-            onClick = onExpandMap,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(12.dp)
-        )
-    }
-}
-
 // 라벨 + 값(임의 컴포저블). Operation=텍스트/배지, Geofence=배지, Violation at=텍스트.
 @Composable
 private fun StatusInfoRow(
@@ -255,7 +311,8 @@ private fun StatusInfoRow(
     }
 }
 
-// 타임스탬프 + (라이브면) 마지막 새로고침 이후 경과 시간(mm:ss) + 새로고침 버튼. Disconnect면 타임스탬프만.
+// 라이브: "마지막 새로고침 시각" + 경과 시간(mm:ss) + 새로고침 버튼. 새로고침하면 시각/경과가 갱신된다.
+// Disconnect: 라이브 데이터가 없어 마지막 기록 시각(state.timestamp)만 고정 표시.
 @Composable
 private fun CartRefreshRow(
     timestamp: String,
@@ -263,63 +320,54 @@ private fun CartRefreshRow(
     showRefresh: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val colors = MaterialTheme.extendedColors
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = timestamp,
-            style = Body13,
-            color = MaterialTheme.extendedColors.textSecondary
-        )
-        if (showRefresh) {
-            Spacer(modifier = Modifier.weight(1f))
-            RefreshElapsed(onRefresh = onRefresh)
+        if (!showRefresh) {
+            // Disconnect: 마지막 알려진 시각 고정.
+            Text(text = timestamp, style = Body13, color = colors.textSecondary)
+            return@Row
+        }
+        // 첫 로딩/마지막 새로고침 시각을 기록. 표시 시각·경과 모두 이 값 기준(실제 시각 비교).
+        var lastRefreshMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
+        var elapsedSec by remember { mutableIntStateOf(0) }
+        LaunchedEffect(lastRefreshMillis) {
+            while (true) {
+                elapsedSec = ((System.currentTimeMillis() - lastRefreshMillis) / 1000L)
+                    .coerceAtLeast(0L)
+                    .toInt()
+                delay(1000L)
+            }
+        }
+        Text(text = formatTimestamp(lastRefreshMillis), style = Body13, color = colors.textSecondary)
+        Spacer(modifier = Modifier.weight(1f))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = formatElapsed(elapsedSec), style = Body13, color = colors.textSecondary)
+            Image(
+                painter = painterResource(R.drawable.ic_refresh),
+                contentDescription = "새로고침",
+                colorFilter = ColorFilter.tint(colors.textSecondary),
+                modifier = Modifier
+                    .size(16.dp)
+                    .clickable {
+                        onRefresh()
+                        lastRefreshMillis = System.currentTimeMillis()
+                        elapsedSec = 0
+                    }
+            )
         }
     }
 }
 
-// 첫 로딩/마지막 새로고침 시각을 기록하고, (현재 - 기록) 경과 시간을 매초 mm:ss로 표시한다.
-// 단순 카운터가 아니라 실제 시각 비교라 recompose/일시정지에도 어긋나지 않음.
-// 아이콘 클릭 시 onRefresh 호출 + 기록 시각을 현재로 리셋(경과 0).
-@Composable
-private fun RefreshElapsed(
-    onRefresh: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val colors = MaterialTheme.extendedColors
-    var lastRefreshMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    var elapsedSec by remember { mutableIntStateOf(0) }
-    LaunchedEffect(lastRefreshMillis) {
-        while (true) {
-            elapsedSec = ((System.currentTimeMillis() - lastRefreshMillis) / 1000L)
-                .coerceAtLeast(0L)
-                .toInt()
-            delay(1000L)
-        }
-    }
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(text = formatElapsed(elapsedSec), style = Body13, color = colors.textSecondary)
-        Image(
-            painter = painterResource(R.drawable.ic_refresh),
-            contentDescription = "새로고침",
-            colorFilter = ColorFilter.tint(colors.textSecondary),
-            modifier = Modifier
-                .size(16.dp)
-                .clickable {
-                    onRefresh()
-                    lastRefreshMillis = System.currentTimeMillis()
-                    elapsedSec = 0
-                }
-        )
-    }
-}
+// millis → "yyyy.MM.dd HH:mm:ss" (표시용 새로고침 시각).
+private fun formatTimestamp(millis: Long): String =
+    SimpleDateFormat("yyyy.MM.dd HH:mm:ss", Locale.getDefault()).format(Date(millis))
 
-// 경과 초 → "1s" / "11s" / "1m 1s" / "11m 11s" (1분 미만이면 초만).
 private fun formatElapsed(totalSec: Int): String {
     val m = totalSec / 60
     val s = totalSec % 60

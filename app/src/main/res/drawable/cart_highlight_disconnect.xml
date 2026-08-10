@@ -1,0 +1,13 @@
+<!-- 지도에서 강조되는 카트(Disconnect)의 글로우 원. 블러(filter: blur ~1.19px)는 shape에서
+     지원되지 않아 생략 - 필요하면 표시 시 Modifier.blur(1.dp)로 적용.
+     색: rgba(157,164,175, .30 fill / .50 stroke) = #9DA4AF. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#4D9DA4AF" />
+    <stroke
+        android:width="2.985dp"
+        android:color="#809DA4AF" />
+    <size
+        android:width="91.95dp"
+        android:height="91.95dp" />
+</shape>

@@ -19,6 +19,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,6 +42,10 @@ import com.example.geofencing.ui.components.SectionDivider
 import com.example.geofencing.ui.components.StatusKind
 import com.example.geofencing.ui.components.ViolationRow
 import com.example.geofencing.ui.components.noRippleClickable
+import com.example.geofencing.ui.map.CartMarker
+import com.example.geofencing.ui.map.FixedGeofenceMap
+import com.example.geofencing.ui.map.GeofenceMapContent
+import com.example.geofencing.ui.map.ViolationHeatmapPopup
 import com.example.geofencing.ui.theme.Body14
 import com.example.geofencing.ui.theme.GeofencingTheme
 import com.example.geofencing.ui.theme.Header20
@@ -44,6 +53,7 @@ import com.example.geofencing.ui.theme.Label14
 import com.example.geofencing.ui.theme.PageHorizontalMargin
 import com.example.geofencing.ui.theme.RoundedMd
 import com.example.geofencing.ui.theme.extendedColors
+import com.google.android.gms.maps.model.LatLng
 
 // 화면 표시용 UI state. 지금은 프리뷰/임시 데이터, 나중에 ViewModel(API)이 생성.
 // Violation/Disconnect는 섹터가 정해져 있어 카트 단독(섹터 컬럼 없음).
@@ -52,6 +62,7 @@ data class SectorDisconnectEntry(val cart: String, val elapsed: String)
 data class CartStateEntry(val cart: String, val drivingState: String, val kind: StatusKind)
 
 data class SectorUiState(
+    val id: Int,
     val name: String,
     val address: String,
     val wholeCarts: Int,
@@ -61,11 +72,19 @@ data class SectorUiState(
     val disconnects: List<SectorDisconnectEntry>,
     val allCarts: List<CartStateEntry>,
     val currentPage: Int,
-    val totalPages: Int
+    val totalPages: Int,
+    // 지도용: geofence 경계 + 카트 위치(실시간). 실데이터 전엔 비어있을 수 있음.
+    val geofence: List<LatLng> = emptyList(),
+    val carts: List<CartMarker> = emptyList(),
+    // Violation Heatmap 팝업용: 위반 발생 위치들.
+    val violationPoints: List<LatLng> = emptyList()
 )
 
 // TODO(측정): 페이지 레벨 실측값. 지금은 임시 추정치.
 private val SectorMapHeight = 240.dp
+// 배너에서 geofence 상·하단 여백(글자 오버레이 없는 배치). fit 높이 = 배너 - 2*여백.
+private val SectorMapGeofenceMargin = 45.dp
+private val SectorMapGeofenceFitHeight = SectorMapHeight - SectorMapGeofenceMargin * 2
 private val MapToTitleGap = 42.dp
 private val TitleToAddressGap = 14.dp
 private val AddressToStatGap = 42.dp
@@ -83,6 +102,10 @@ fun SectorPage(
     onCartClick: (CartStateEntry) -> Unit = {},
     onPageSelect: (Int) -> Unit = {}
 ) {
+    var showHeatmap by remember { mutableStateOf(false) }
+    // 페이지네이션 현재 페이지(로컬). totalPages는 All Cart List 수량에서 자동 계산.
+    var currentPage by remember { mutableIntStateOf(1) }
+    val totalPages = ((state.wholeCarts + CartsPerPage - 1) / CartsPerPage).coerceAtLeast(1)
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -90,7 +113,14 @@ fun SectorPage(
             .padding(bottom = PageBottomGap)
     ) {
         // 지도 배너는 full-bleed(좌우 여백 없이 가장자리까지).
-        SectorMapBanner(onHeatmapClick = onHeatmapClick)
+        SectorMapBanner(
+            content = GeofenceMapContent(geofence = state.geofence, carts = state.carts),
+            sectorId = state.id,
+            onHeatmapClick = {
+                showHeatmap = true
+                onHeatmapClick()
+            }
+        )
 
         // 나머지 콘텐츠는 좌우 공통 여백 적용.
         Column(modifier = Modifier.padding(horizontal = PageHorizontalMargin)) {
@@ -162,25 +192,50 @@ fun SectorPage(
 
             Spacer(modifier = Modifier.height(PaginationGap))
             Pagination(
-                currentPage = state.currentPage,
-                totalPages = state.totalPages,
-                onPageSelect = onPageSelect,
+                currentPage = currentPage,
+                totalPages = totalPages,
+                onPageSelect = { page ->
+                    currentPage = page
+                    onPageSelect(page)
+                },
                 modifier = Modifier.fillMaxWidth()
             )
         }
     }
+
+    if (showHeatmap) {
+        ViolationHeatmapPopup(
+            geofence = state.geofence,
+            carts = state.carts,
+            violationPoints = state.violationPoints,
+            onDismiss = { showHeatmap = false }
+        )
+    }
 }
 
-// 지도 배너 + "Violation Heatmap >" 진입. TODO: 라이브 지도(GeofenceMap)로 교체 + full-bleed.
+// 지도 배너(고정 프레임, geofence 전체가 보이게) + "Violation Heatmap >" 진입.
+// 배경은 캐시 스냅샷(FixedGeofenceMap, 미스 시 자체 생성), 그 위에 경계·카트가 Canvas로 그려진다.
 @Composable
-private fun SectorMapBanner(onHeatmapClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun SectorMapBanner(
+    content: GeofenceMapContent,
+    sectorId: Int,
+    onHeatmapClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(SectorMapHeight)
-            .background(MaterialTheme.extendedColors.fillPrimary),
+            .height(SectorMapHeight),
         contentAlignment = Alignment.BottomCenter
     ) {
+        FixedGeofenceMap(
+            content = content,
+            sectorId = sectorId,
+            autoGenerate = true,
+            // 폭은 배너 전체(fitWidth 생략) — 높이(상하 45dp 여백)가 축척을 정한다.
+            fitHeight = SectorMapGeofenceFitHeight,
+            modifier = Modifier.fillMaxSize()
+        )
         Row(
             modifier = Modifier
                 .noRippleClickable(onHeatmapClick)
@@ -201,6 +256,9 @@ private fun SectorMapBanner(onHeatmapClick: () -> Unit, modifier: Modifier = Mod
         }
     }
 }
+
+// All Cart List 한 페이지에 표시할 카트 수. totalPages = ceil(wholeCarts / 이 값).
+private const val CartsPerPage = 8 // TODO(측정): 페이지당 카트 수 확정.
 
 // 페이지네이션 컨테이너 padding 10 / 아이템 간격 10 / 아이템 40×40 고정 / 선택 테두리 1.5dp.
 private val PaginationPadding = 10.dp
@@ -223,28 +281,59 @@ private fun Pagination(
         horizontalArrangement = Arrangement.spacedBy(PaginationItemGap, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        (1..totalPages).forEach { page ->
-            val selected = page == currentPage
-            Box(
-                modifier = Modifier
-                    .size(PaginationItemSize)
-                    .then(
-                        if (selected) {
-                            Modifier
-                                .clip(selectedShape)
-                                .background(colors.fillPrimary)
-                                .border(PaginationSelectedBorder, colors.borderDefault, selectedShape)
-                        } else {
-                            Modifier
-                        }
-                    )
-                    .noRippleClickable { onPageSelect(page) },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(text = page.toString(), style = Label14, color = colors.textPrimary)
+        paginationItems(currentPage, totalPages).forEach { item ->
+            when (item) {
+                is PageItem.Number -> {
+                    val page = item.page
+                    val selected = page == currentPage
+                    Box(
+                        modifier = Modifier
+                            .size(PaginationItemSize)
+                            .then(
+                                if (selected) {
+                                    Modifier
+                                        .clip(selectedShape)
+                                        .background(colors.fillPrimary)
+                                        .border(PaginationSelectedBorder, colors.borderDefault, selectedShape)
+                                } else {
+                                    Modifier
+                                }
+                            )
+                            .noRippleClickable { onPageSelect(page) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = page.toString(), style = Label14, color = colors.textPrimary)
+                    }
+                }
+                PageItem.Ellipsis -> Box(
+                    modifier = Modifier.size(PaginationItemSize),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "...", style = Label14, color = colors.textDisabled)
+                }
             }
         }
     }
+}
+
+// 페이지네이션 아이템: 숫자 또는 생략(...).
+private sealed interface PageItem {
+    data class Number(val page: Int) : PageItem
+    data object Ellipsis : PageItem
+}
+
+// totalPages<=5면 전부, 초과면 [1 … (현재±1) … 마지막] 형태로 축약.
+private fun paginationItems(current: Int, total: Int): List<PageItem> {
+    if (total <= 5) return (1..total).map { PageItem.Number(it) }
+    val items = mutableListOf<PageItem>()
+    items += PageItem.Number(1)
+    val start = maxOf(2, current - 1)
+    val end = minOf(total - 1, current + 1)
+    if (start > 2) items += PageItem.Ellipsis
+    for (p in start..end) items += PageItem.Number(p)
+    if (end < total - 1) items += PageItem.Ellipsis
+    items += PageItem.Number(total)
+    return items
 }
 
 @Preview(name = "SectorPage", showBackground = true, backgroundColor = 0xFF0F0F0F, heightDp = 1600)

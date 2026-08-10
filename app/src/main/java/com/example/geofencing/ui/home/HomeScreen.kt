@@ -22,6 +22,7 @@ import com.example.geofencing.ui.cart.CartUiState
 import com.example.geofencing.ui.cart.cartStateFor
 import com.example.geofencing.ui.components.AppTopBar
 import com.example.geofencing.ui.components.SectorTabRow
+import com.example.geofencing.ui.mock.mockSectorByName
 import com.example.geofencing.ui.sector.SectorPage
 import com.example.geofencing.ui.sector.sampleSectorState
 import com.example.geofencing.ui.theme.GeofencingTheme
@@ -99,11 +100,12 @@ fun HomeScreen(
                         }
                     )
                     else -> {
-                        // 탭(sectorNames)과 SectorPage 제목이 같은 데이터를 쓰도록 선택 탭 이름을 넘긴다.
-                        // TODO: 선택 섹터별 실데이터 주입(지금은 공통 샘플에 이름만 반영).
+                        // 선택 탭의 섹터를 단일 mock 소스에서 조회해 페이지를 구성(지도/목록/상세가 일치).
                         val sectorName = sectorNames.getOrNull(selectedIndex - 1).orEmpty()
+                        val sectorState = mockSectorByName(sectorName)?.let { sampleSectorState(it) }
+                            ?: sampleSectorState()
                         SectorPage(
-                            state = sampleSectorState().copy(name = sectorName),
+                            state = sectorState,
                             // 카트 클릭(violation/disconnect/all cart) → 현재 섹터의 해당 카트로 드릴다운
                             onViolationClick = { openCart = cartStateFor(sectorName, it.cart) },
                             onDisconnectClick = { openCart = cartStateFor(sectorName, it.cart) },

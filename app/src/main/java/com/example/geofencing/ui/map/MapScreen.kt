@@ -74,19 +74,15 @@ import com.example.geofencing.ui.map.slidepanel.summary.EventCodeSection
 import com.example.geofencing.ui.map.slidepanel.summary.RefreshStatusRow
 import com.example.geofencing.ui.theme.Body14
 import com.example.geofencing.ui.theme.DarkBackground
-import com.example.geofencing.ui.theme.DarkBrandPrimary
-import com.example.geofencing.ui.theme.DarkCriticalPrimary
 import com.example.geofencing.ui.theme.extendedColors
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MapStyleOptions
-import com.google.maps.android.PolyUtil
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
-import com.google.maps.android.compose.Polygon
 import com.google.maps.android.compose.rememberCameraPositionState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
@@ -95,10 +91,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
-// 지오펜스 폴리곤을 그릴 때 PolyUtil.simplify로 다듬는 허용 오차(미터) 
-// - 점이 너무 많은 경계선도 시각적으로 거의 동일하게, 더 가볍게 그리기 위함.
-private const val GEOFENCE_SIMPLIFY_TOLERANCE_METERS = 5.0
 
 // MainSearchBar 자체 높이(72dp, statusBarsPadding 별도) - 지도 contentPadding에 반영해서
 // 카메라 프레이밍이 검색바에 가려지는 영역을 정중앙으로 착각하지 않게 한다.
@@ -281,18 +273,15 @@ fun MapScreen(
         ) {
             // TODO: 줌 레벨에 따라 점(마커만)/폴리곤(경계선)으로 다르게 렌더링해야 하는데,
             // 디자인이 아직 없어서 지금은 줌 레벨과 무관하게 항상 폴리곤으로 그린다.
-            sectorOverviews.forEach { overview ->
-                val hasViolation = sectorDetails.find { it.id == overview.id }?.cartSummary?.violating?.let { it > 0 } ?: false
-                val simplifiedPoints = remember(overview.geofence) {
-                    PolyUtil.simplify(overview.geofence, GEOFENCE_SIMPLIFY_TOLERANCE_METERS)
+            // 지오펜스 렌더링(외부 어둡게 + 경계/채움)은 재사용 컴포넌트로 위임.
+            // MapScreen 삭제 후 새 지도 화면들도 GeofenceLayer를 그대로 재사용.
+            GeofenceLayer(
+                areas = sectorOverviews.map { overview ->
+                    val hasViolation = sectorDetails.find { it.id == overview.id }
+                        ?.cartSummary?.violating?.let { it > 0 } ?: false
+                    GeofenceArea(points = overview.geofence, hasViolation = hasViolation)
                 }
-                Polygon(
-                    points = simplifiedPoints,
-                    strokeColor = if (hasViolation) DarkCriticalPrimary else DarkBrandPrimary,
-                    strokeWidth = 4f,
-                    fillColor = (if (hasViolation) DarkCriticalPrimary else DarkBrandPrimary).copy(alpha = 0.12f)
-                )
-            }
+            )
             markers.forEach { marker ->
                 MapPinMarker(
                     marker = marker,
