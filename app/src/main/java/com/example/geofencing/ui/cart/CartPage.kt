@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.geofencing.R
+import com.example.geofencing.ui.components.AppIconButton
 import com.example.geofencing.ui.components.BackButton
 import com.example.geofencing.ui.components.MapExpandButton
 import com.example.geofencing.ui.components.MapReduceButton
@@ -348,17 +349,16 @@ private fun CartRefreshRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(text = formatElapsed(elapsedSec), style = Body13, color = colors.textSecondary)
-            Image(
-                painter = painterResource(R.drawable.ic_refresh),
+            AppIconButton(
+                iconRes = R.drawable.ic_refresh,
                 contentDescription = "새로고침",
-                colorFilter = ColorFilter.tint(colors.textSecondary),
-                modifier = Modifier
-                    .size(16.dp)
-                    .clickable {
-                        onRefresh()
-                        lastRefreshMillis = System.currentTimeMillis()
-                        elapsedSec = 0
-                    }
+                onClick = {
+                    onRefresh()
+                    lastRefreshMillis = System.currentTimeMillis()
+                    elapsedSec = 0
+                },
+                size = 16.dp,
+                tint = colors.textSecondary
             )
         }
     }

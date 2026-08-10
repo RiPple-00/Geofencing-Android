@@ -43,8 +43,9 @@ import com.example.geofencing.ui.components.StatusKind
 import com.example.geofencing.ui.components.ViolationRow
 import com.example.geofencing.ui.components.noRippleClickable
 import com.example.geofencing.ui.map.CartMarker
-import com.example.geofencing.ui.map.FixedGeofenceMap
 import com.example.geofencing.ui.map.GeofenceMapContent
+import com.example.geofencing.ui.map.LiveGeofenceMap
+import com.example.geofencing.ui.map.MapCamera
 import com.example.geofencing.ui.map.ViolationHeatmapPopup
 import com.example.geofencing.ui.theme.Body14
 import com.example.geofencing.ui.theme.GeofencingTheme
@@ -82,9 +83,8 @@ data class SectorUiState(
 
 // TODO(측정): 페이지 레벨 실측값. 지금은 임시 추정치.
 private val SectorMapHeight = 240.dp
-// 배너에서 geofence 상·하단 여백(글자 오버레이 없는 배치). fit 높이 = 배너 - 2*여백.
-private val SectorMapGeofenceMargin = 45.dp
-private val SectorMapGeofenceFitHeight = SectorMapHeight - SectorMapGeofenceMargin * 2
+// 배너 라이브 지도에서 geofence 가장자리 여백(dp). FitGeofence padding으로 전달(상하 ~45dp).
+private const val SectorMapGeofenceMarginDp = 45
 private val MapToTitleGap = 42.dp
 private val TitleToAddressGap = 14.dp
 private val AddressToStatGap = 42.dp
@@ -115,7 +115,6 @@ fun SectorPage(
         // 지도 배너는 full-bleed(좌우 여백 없이 가장자리까지).
         SectorMapBanner(
             content = GeofenceMapContent(geofence = state.geofence, carts = state.carts),
-            sectorId = state.id,
             onHeatmapClick = {
                 showHeatmap = true
                 onHeatmapClick()
@@ -213,12 +212,10 @@ fun SectorPage(
     }
 }
 
-// 지도 배너(고정 프레임, geofence 전체가 보이게) + "Violation Heatmap >" 진입.
-// 배경은 캐시 스냅샷(FixedGeofenceMap, 미스 시 자체 생성), 그 위에 경계·카트가 Canvas로 그려진다.
+// 지도 배너(라이브, geofence 전체가 보이게 고정 프레임) + "Violation Heatmap >" 진입.
 @Composable
 private fun SectorMapBanner(
     content: GeofenceMapContent,
-    sectorId: Int,
     onHeatmapClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -228,12 +225,9 @@ private fun SectorMapBanner(
             .height(SectorMapHeight),
         contentAlignment = Alignment.BottomCenter
     ) {
-        FixedGeofenceMap(
+        LiveGeofenceMap(
             content = content,
-            sectorId = sectorId,
-            autoGenerate = true,
-            // 폭은 배너 전체(fitWidth 생략) — 높이(상하 45dp 여백)가 축척을 정한다.
-            fitHeight = SectorMapGeofenceFitHeight,
+            camera = MapCamera.FitGeofence(paddingDp = SectorMapGeofenceMarginDp),
             modifier = Modifier.fillMaxSize()
         )
         Row(

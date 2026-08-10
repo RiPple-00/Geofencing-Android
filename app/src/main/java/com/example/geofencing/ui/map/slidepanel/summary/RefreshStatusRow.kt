@@ -8,9 +8,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -43,9 +43,7 @@ fun RefreshStatusRow(
     ) {
         Text(
             text = lastRefreshedAt,
-            modifier = Modifier
-                .width(103.dp)
-                .height(14.dp),
+            modifier = Modifier.width(103.dp),
             style = Label13,
             color = DarkTextSecondary
         )
@@ -59,15 +57,21 @@ fun RefreshStatusRow(
 private fun RefreshButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     Box(
         modifier = modifier
-            .size(32.dp)
-            .border(width = 1.dp, color = DarkBorderDefault, shape = RoundedCornerShape(RoundedMd))
+            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Image(
-            painter = painterResource(R.drawable.ic_refresh),
-            contentDescription = "새로고침",
-            modifier = Modifier.size(16.dp)
-        )
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .border(width = 1.dp, color = DarkBorderDefault, shape = RoundedCornerShape(RoundedMd)),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(R.drawable.ic_refresh),
+                contentDescription = "새로고침",
+                modifier = Modifier.size(16.dp)
+            )
+        }
     }
 }

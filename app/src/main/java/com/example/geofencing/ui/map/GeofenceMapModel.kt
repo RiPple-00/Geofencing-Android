@@ -27,8 +27,9 @@ fun GeofenceMapContent.isHighlighted(cart: CartMarker): Boolean =
 
 // 카메라(어디를 볼지). content와 분리.
 sealed interface MapCamera {
-    // geofence 전체가 보이는 고정 프레임(썸네일 · Sector). zoomFactor로 맞춤 후 추가 확대(1.3=1.3배).
-    data class FitGeofence(val zoomFactor: Float = 1f) : MapCamera
+    // geofence 전체가 보이는 고정 프레임(Sector·Heatmap). zoomFactor로 맞춤 후 추가 확대(1.3=1.3배).
+    // paddingDp: geofence를 뷰에 맞출 때 가장자리 여백(dp). null이면 기본값.
+    data class FitGeofence(val zoomFactor: Float = 1f, val paddingDp: Int? = null) : MapCamera
     // 특정 카트를 중앙에 두고 추적(Cart). zoom만 inline/fullscreen에서 다름.
     data class FollowCart(val cartId: String, val zoom: Float) : MapCamera
 }

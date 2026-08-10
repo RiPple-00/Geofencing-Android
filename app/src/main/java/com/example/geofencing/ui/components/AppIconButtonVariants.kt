@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -66,6 +67,7 @@ private fun MapCornerButton(
 ) {
     Box(
         modifier = modifier
+            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
             .clip(CardShape)
             .background(MaterialTheme.extendedColors.fillSecondary)
             .border(1.dp, MaterialTheme.extendedColors.borderDefault, CardShape)

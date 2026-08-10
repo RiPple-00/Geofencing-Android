@@ -12,6 +12,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import com.example.geofencing.R
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
@@ -51,6 +53,7 @@ fun LiveGeofenceMap(
     mapContent: @Composable @GoogleMapComposable () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val density = LocalDensity.current
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(initialTarget(content, camera), initialZoom(camera))
     }
@@ -116,10 +119,11 @@ fun LiveGeofenceMap(
         is MapCamera.FitGeofence -> {
             // 애니메이션 없이 즉시 geofence 전체에 맞춤(열 때 "화면 이동" 방지). map!=null이면 뷰 크기 확보됨.
             // zoomFactor가 1이 아니면 맞춤 후 배율만큼 추가 확대(줌 레벨은 로그 스케일이라 log2).
-            LaunchedEffect(content.geofence, map, camera.zoomFactor) {
+            val fitPaddingPx = camera.paddingDp?.let { with(density) { it.dp.roundToPx() } } ?: FitPaddingPx
+            LaunchedEffect(content.geofence, map, camera.zoomFactor, fitPaddingPx) {
                 if (map != null && content.geofence.size >= 3) {
                     cameraPositionState.move(
-                        CameraUpdateFactory.newLatLngBounds(boundsOf(content.geofence), FitPaddingPx)
+                        CameraUpdateFactory.newLatLngBounds(boundsOf(content.geofence), fitPaddingPx)
                     )
                     if (camera.zoomFactor != 1f) {
                         cameraPositionState.move(CameraUpdateFactory.zoomBy(log2(camera.zoomFactor)))
