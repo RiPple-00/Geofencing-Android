@@ -6,7 +6,8 @@ import com.example.geofencing.ui.mock.MockSector
 import com.example.geofencing.ui.mock.MockSectors
 
 // 단일 mock 소스(MockSector)에서 SectorPage 상태 파생. 지도 카트·목록·상세가 같은 carts를 봐 일치.
-fun sampleSectorState(sector: MockSector): SectorUiState {
+// ViewModel(SectorViewModel)이 Repository 데이터로 이 함수를 호출한다.
+fun sectorStateFrom(sector: MockSector): SectorUiState {
     val violationCarts = sector.carts.filter { it.status == StatusKind.Violation }
     val disconnectCarts = sector.carts.filter { it.status == StatusKind.Disconnect }
     return SectorUiState(
@@ -28,4 +29,4 @@ fun sampleSectorState(sector: MockSector): SectorUiState {
 }
 
 // 프리뷰용(첫 섹터).
-fun sampleSectorState(): SectorUiState = sampleSectorState(MockSectors.first())
+fun sampleSectorState(): SectorUiState = sectorStateFrom(MockSectors.first())
