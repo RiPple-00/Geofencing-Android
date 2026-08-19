@@ -21,7 +21,9 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.geofencing.ui.cart.CartPage
 import com.example.geofencing.ui.cart.CartViewModel
+import com.example.geofencing.ui.common.LoadState
 import com.example.geofencing.ui.components.AppTopBar
+import com.example.geofencing.ui.components.LoadStateContent
 import com.example.geofencing.ui.components.SectorTabRow
 import com.example.geofencing.ui.sector.SectorPage
 import com.example.geofencing.ui.sector.SectorViewModel
@@ -38,8 +40,9 @@ private const val APP_TITLE = "Geofence"
 @Composable
 fun HomeScreen(
     sectorNames: List<String>,
-    wholeSectorState: WholeSectorUiState,
+    wholeSectorState: LoadState<WholeSectorUiState>,
     modifier: Modifier = Modifier,
+    onWholeSectorRetry: () -> Unit = {},
     onBellClick: () -> Unit = {}
 ) {
     // 0 = Whole Sector, 1.. = sectorNames
@@ -91,26 +94,28 @@ fun HomeScreen(
                 .fillMaxWidth()
         ) {
             if (openCartTarget != null) {
-                // 카트 상세(로딩되면 표시). 뒤로가기로 닫음.
-                cartState?.let { cart ->
+                // 카트 상세 — 로딩 스피너/오류(재시도)/정상을 LoadStateContent가 분기.
+                LoadStateContent(state = cartState, onRetry = cartViewModel::retry) { cart ->
                     CartPage(state = cart, onBack = { openCartTarget = null })
                 }
             } else {
                 when (selectedIndex) {
-                    0 -> WholeSectorPage(
-                        state = wholeSectorState,
-                        // Violation/Disconnect 카트 클릭 → 해당 섹터의 해당 카트로 드릴다운
-                        onViolationClick = { openCartTarget = it.sector to it.cart },
-                        onDisconnectClick = { openCartTarget = it.sector to it.cart },
-                        // 섹터 카드 클릭 → 해당 섹터 탭으로 전환
-                        onSectorClick = { s ->
-                            val idx = sectorNames.indexOf(s.name)
-                            if (idx >= 0) selectedIndex = idx + 1
-                        }
-                    )
-                    else -> sectorState?.let { s ->
+                    0 -> LoadStateContent(state = wholeSectorState, onRetry = onWholeSectorRetry) { ws ->
+                        WholeSectorPage(
+                            state = ws,
+                            // Violation/Disconnect 카트 클릭 → 해당 섹터의 해당 카트로 드릴다운
+                            onViolationClick = { openCartTarget = it.sector to it.cart },
+                            onDisconnectClick = { openCartTarget = it.sector to it.cart },
+                            // 섹터 카드 클릭 → 해당 섹터 탭으로 전환
+                            onSectorClick = { summary ->
+                                val idx = sectorNames.indexOf(summary.name)
+                                if (idx >= 0) selectedIndex = idx + 1
+                            }
+                        )
+                    }
+                    else -> LoadStateContent(state = sectorState, onRetry = sectorViewModel::retry) { sectorUi ->
                         SectorPage(
-                            state = s,
+                            state = sectorUi,
                             // 카트 클릭(violation/disconnect/all cart) → 현재 섹터의 해당 카트로 드릴다운
                             onViolationClick = { openCartTarget = sectorName to it.cart },
                             onDisconnectClick = { openCartTarget = sectorName to it.cart },

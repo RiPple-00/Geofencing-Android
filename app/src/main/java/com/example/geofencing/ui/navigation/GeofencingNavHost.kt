@@ -30,12 +30,13 @@ fun GeofencingNavHost(
     ) {
         composable(Screen.Main.route) {
             // WholeSector 데이터는 ViewModel(→ DashboardRepository, 현재 mock)에서 주입.
-            // TODO: Sector/Cart도 ViewModel로 연결(지금은 HomeScreen 내부 샘플 함수 사용).
+            // Sector/Cart ViewModel은 HomeScreen 내부에서 hiltViewModel()로 연결한다.
             val viewModel: WholeSectorViewModel = hiltViewModel()
             val wholeSectorState by viewModel.state.collectAsState()
             HomeScreen(
                 sectorNames = SampleSectorNames,
-                wholeSectorState = wholeSectorState
+                wholeSectorState = wholeSectorState,
+                onWholeSectorRetry = viewModel::retry
             )
         }
     }
