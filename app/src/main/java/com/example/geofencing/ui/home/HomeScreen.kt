@@ -14,7 +14,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -47,8 +46,10 @@ fun HomeScreen(
 ) {
     // 0 = Whole Sector, 1.. = sectorNames
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
-    // 드릴다운 대상 카트(섹터명, 카트 id). null이면 탭 페이지. TODO: 회전 보존/정식 네비게이션.
-    var openCartTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
+    // 드릴다운 대상 카트(섹터명, 카트 id). null이면 탭 페이지.
+    // rememberSaveable: selectedIndex와 동일하게 구성 변경(회전 등)·프로세스 종료에도 보존.
+    // Pair<String,String>은 Serializable이라 별도 Saver 없이 저장됨.
+    var openCartTarget by rememberSaveable { mutableStateOf<Pair<String, String>?>(null) }
 
     BackHandler(enabled = openCartTarget != null) { openCartTarget = null }
 
