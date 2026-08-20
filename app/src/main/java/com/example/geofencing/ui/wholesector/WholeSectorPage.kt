@@ -42,8 +42,8 @@ import com.example.geofencing.ui.map.GeofenceMapContent
 import com.example.geofencing.ui.map.SectorSnapshotPrefetcher
 import com.example.geofencing.ui.map.SectorSnapshotRequest
 import com.example.geofencing.ui.theme.Body13
+import com.example.geofencing.ui.theme.Label18
 import com.example.geofencing.ui.theme.GeofencingTheme
-import com.example.geofencing.ui.theme.Header20
 import com.example.geofencing.ui.theme.Header30
 import com.example.geofencing.ui.theme.PageHorizontalMargin
 import com.example.geofencing.ui.theme.extendedColors
@@ -230,7 +230,7 @@ private fun SectorMapCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = sector.name,
-                    style = Header20,
+                    style = Label18,
                     color = MaterialTheme.extendedColors.textPrimary,
                     modifier = Modifier.weight(1f)
                 )
