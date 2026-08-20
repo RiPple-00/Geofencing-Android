@@ -101,12 +101,35 @@ insert into sectors (site_id, name, address, geofence) values
  '{"type":"Polygon","coordinates":[[[126.9810,37.5722],[126.9834,37.5724],[126.9852,37.5710],[126.9844,37.5690],[126.9814,37.5687],[126.9800,37.5703],[126.9810,37.5722]]]}');
 
 insert into carts (sector_id, name, geofence_status, driving_status, lat, lng) values
-(1, 'Golfzon County 1', 'violating', 'driving', 37.5690, 126.9820),
-(1, 'Golfzon County 2', 'compliant', 'driving', 37.5665, 126.9782),
-(1, 'Golfzon County 3', 'compliant', 'idle',    37.5670, 126.9790),
-(2, 'Golfzon County 4', 'compliant', 'driving', 37.5706, 126.9826),
-(2, 'Golfzon County 5', 'compliant', 'idle',    37.5700, 126.9820);
+-- Sector #1 (1 + 3 violating, rest compliant)
+(1, 'Cart 1',  'violating', 'driving', 37.5690, 126.9820),
+(1, 'Cart 2',  'compliant', 'driving', 37.5665, 126.9782),
+(1, 'Cart 3',  'compliant', 'idle',    37.5670, 126.9790),
+(1, 'Cart 6',  'violating', 'driving', 37.5688, 126.9820),
+(1, 'Cart 7',  'violating', 'idle',    37.5648, 126.9748),
+(1, 'Cart 8',  'violating', 'driving', 37.5695, 126.9800),
+(1, 'Cart 9',  'compliant', 'driving', 37.5668, 126.9778),
+(1, 'Cart 10', 'compliant', 'idle',    37.5672, 126.9785),
+(1, 'Cart 11', 'compliant', 'driving', 37.5660, 126.9782),
+(1, 'Cart 12', 'compliant', 'idle',    37.5665, 126.9772),
+(1, 'Cart 13', 'compliant', 'driving', 37.5675, 126.9790),
+(1, 'Cart 14', 'compliant', 'idle',    37.5658, 126.9788),
+(1, 'Cart 15', 'compliant', 'driving', 37.5663, 126.9795),
+(1, 'Cart 16', 'compliant', 'idle',    37.5669, 126.9768),
+(1, 'Cart 17', 'compliant', 'driving', 37.5655, 126.9779),
+(1, 'Cart 18', 'compliant', 'idle',    37.5678, 126.9783),
+(1, 'Cart 19', 'compliant', 'driving', 37.5661, 126.9800),
+(1, 'Cart 20', 'compliant', 'idle',    37.5673, 126.9776),
+-- Sector #2
+(2, 'Cart 4',  'compliant', 'driving', 37.5706, 126.9826),
+(2, 'Cart 5',  'compliant', 'idle',    37.5700, 126.9820);
 
 insert into geofence_events (cart_id, sector_id, occurred_at, location, max_speed, address) values
-(1, 1, now() - interval '5 minutes',
- '{"type":"Point","coordinates":[126.9820,37.5690]}', '16 Km/h', 'Seoul Jung-gu, Sejong-daero');
+((select id from carts where name = 'Cart 1'), 1, now() - interval '5 minutes',
+ '{"type":"Point","coordinates":[126.9820,37.5690]}', '16 Km/h', 'Seoul Jung-gu, Sejong-daero'),
+((select id from carts where name = 'Cart 6'), 1, now() - interval '3 minutes',
+ '{"type":"Point","coordinates":[126.9820,37.5688]}', '18 Km/h', 'Seoul Jung-gu, Toegye-ro'),
+((select id from carts where name = 'Cart 7'), 1, now() - interval '12 minutes',
+ '{"type":"Point","coordinates":[126.9748,37.5648]}', '21 Km/h', 'Seoul Jung-gu, Namdaemun-ro'),
+((select id from carts where name = 'Cart 8'), 1, now() - interval '1 minute',
+ '{"type":"Point","coordinates":[126.9800,37.5695]}', '15 Km/h', 'Seoul Jongno-gu, Jong-ro');
