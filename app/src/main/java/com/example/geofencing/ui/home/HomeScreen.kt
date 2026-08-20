@@ -40,7 +40,6 @@ private const val APP_TITLE = "Geofence"
 // 탭/드릴다운 선택 상태는 여기서 소유하고, 각 화면 데이터는 ViewModel(→ Repository)에서 관찰한다.
 @Composable
 fun HomeScreen(
-    sectorNames: List<String>,
     wholeSectorState: LoadState<WholeSectorUiState>,
     modifier: Modifier = Modifier,
     onWholeSectorRetry: () -> Unit = {},
@@ -58,6 +57,9 @@ fun HomeScreen(
     val sectorViewModel: SectorViewModel = hiltViewModel()
     val cartViewModel: CartViewModel = hiltViewModel()
     val analytics = LocalAnalytics.current
+
+    // 탭 이름은 로드된 WholeSector 상태(Supabase)의 섹터 목록에서 파생 → 실데이터와 일관.
+    val sectorNames = (wholeSectorState as? LoadState.Success)?.data?.sectors?.map { it.name }.orEmpty()
 
     // 선택 탭/드릴다운을 각 ViewModel에 반영.
     val sectorName = sectorNames.getOrNull(selectedIndex - 1).orEmpty()

@@ -36,7 +36,9 @@ data class SbEvent(
     @SerialName("cart_id") val cartId: Int,
     @SerialName("sector_id") val sectorId: Int,
     @SerialName("occurred_at") val occurredAt: String,
-    val location: GeoPoint
+    val location: GeoPoint,
+    @SerialName("max_speed") val maxSpeed: String? = null,
+    val address: String? = null
 )
 
 // Supabase PostgREST 엔드포인트. 인증 헤더(apikey/Authorization)는 OkHttp 인터셉터가 붙인다.

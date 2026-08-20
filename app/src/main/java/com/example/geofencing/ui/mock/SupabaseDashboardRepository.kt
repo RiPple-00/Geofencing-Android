@@ -1,6 +1,7 @@
 package com.example.geofencing.ui.mock
 
 import com.example.geofencing.data.remote.supabase.SbCart
+import com.example.geofencing.data.remote.supabase.SbEvent
 import com.example.geofencing.data.remote.supabase.SupabaseApi
 import com.example.geofencing.ui.components.StatusKind
 import com.google.android.gms.maps.model.LatLng
@@ -40,10 +41,10 @@ class SupabaseDashboardRepository @Inject constructor(
         val events = api.getEvents()
         val cartsBySector = api.getCarts().groupBy { it.sectorId }
         val eventsBySector = events.groupBy { it.sectorId }
-        // 카트별 최신 위반 이벤트 발생 시각(지속시간 계산용).
-        val latestEventByCart: Map<Int, Instant?> = events
+        // 카트별 최신 위반 이벤트(지속시간·최고속도·주소용).
+        val latestEventByCart: Map<Int, SbEvent> = events
             .groupBy { it.cartId }
-            .mapValues { (_, evs) -> evs.mapNotNull { parseInstant(it.occurredAt) }.maxOrNull() }
+            .mapValues { (_, evs) -> evs.maxByOrNull { parseInstant(it.occurredAt) ?: Instant.MIN }!! }
 
         return sectors.map { sector ->
             // GeoJSON 외곽 링 → LatLng. [lng,lat] 순서 뒤집고, 닫힘점(첫=마지막) 제거.
@@ -70,7 +71,7 @@ class SupabaseDashboardRepository @Inject constructor(
     private fun placeCarts(
         geofence: List<LatLng>,
         carts: List<SbCart>,
-        latestEventByCart: Map<Int, Instant?>
+        latestEventByCart: Map<Int, SbEvent>
     ): List<MockCart> {
         if (geofence.isEmpty()) return emptyList()
         val centerLat = geofence.map { it.latitude }.average()
@@ -92,7 +93,8 @@ class SupabaseDashboardRepository @Inject constructor(
             } else {
                 insideFracs[insideIdx++ % insideFracs.size]
             }
-            val eventAt = latestEventByCart[cart.id]
+            val event = latestEventByCart[cart.id]
+            val eventAt = event?.let { parseInstant(it.occurredAt) }
             MockCart(
                 id = cart.name,
                 position = LatLng(centerLat + fracLat * halfLat, centerLng + fracLng * halfLng),
@@ -100,15 +102,15 @@ class SupabaseDashboardRepository @Inject constructor(
                 drivingState = if (cart.drivingStatus == "driving") "Driving" else "Idle",
                 registeredId = "SB-%03d".format(cart.id),
                 timestamp = eventAt?.let { timeFormatter.format(it) } ?: "",
-                // 위반일 때만 채움. 지속시간/발생시각은 이벤트에서 계산, 속도·주소는 소스 없음.
+                // 위반일 때만 채움. 지속시간/발생시각·속도·주소는 최신 위반 이벤트에서.
                 violationDuration = if (status == StatusKind.Violation) {
                     eventAt?.let { formatDuration(Duration.between(it, now)) } ?: "—"
                 } else null,
-                maxSpeed = if (status == StatusKind.Violation) "—" else null,
+                maxSpeed = if (status == StatusKind.Violation) event?.maxSpeed ?: "—" else null,
                 violationAtTime = if (status == StatusKind.Violation) {
                     eventAt?.let { timeFormatter.format(it) } ?: "—"
                 } else null,
-                violationAtAddress = if (status == StatusKind.Violation) "—" else null
+                violationAtAddress = if (status == StatusKind.Violation) event?.address ?: "—" else null
             )
         }
     }

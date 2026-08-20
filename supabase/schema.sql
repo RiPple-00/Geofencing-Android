@@ -46,7 +46,10 @@ create table if not exists geofence_events (
     sector_id   bigint      not null references sectors (id) on delete cascade,
     occurred_at timestamptz not null default now(),
     -- GeoJSON Point: { "type":"Point", "coordinates":[lng,lat] }
-    location    jsonb       not null
+    location    jsonb       not null,
+    -- violation detail (nullable; shown on the cart detail screen)
+    max_speed   text,
+    address     text
 );
 
 -- speeds up the "recent events per sector" lookup
@@ -101,6 +104,6 @@ insert into carts (sector_id, name, geofence_status, driving_status) values
 (2, 'Golfzon County 4', 'compliant', 'driving'),
 (2, 'Golfzon County 5', 'compliant', 'idle');
 
-insert into geofence_events (cart_id, sector_id, occurred_at, location) values
+insert into geofence_events (cart_id, sector_id, occurred_at, location, max_speed, address) values
 (1, 1, now() - interval '5 minutes',
- '{"type":"Point","coordinates":[126.9820,37.5690]}');
+ '{"type":"Point","coordinates":[126.9820,37.5690]}', '16 Km/h', 'Seoul Jung-gu, Sejong-daero');
