@@ -18,10 +18,9 @@ import javax.inject.Singleton
 // DashboardRepository의 Supabase(PostgREST) 구현 — 팀 BE 전까지의 임시 실백엔드.
 // sectors/carts/geofence_events를 읽어 UI 도메인(MockSector/MockCart)으로 조립한다.
 //
-// 스키마에 없는 값의 처리:
-//   - 위치: geofence + 상태 기반으로 합성(위반=경계 밖, 그 외=안쪽)
-//   - 위반 지속시간/발생시각: geofence_events.occurred_at 기준으로 계산(now - occurredAt)
-//   - 최고속도/위반주소: 스키마에 소스 없음 → "—" (필요하면 carts에 컬럼 추가)
+// 값 처리:
+//   - 위치: carts.lat/lng 사용, 없으면 geofence+상태로 합성(위반=경계 밖, 그 외=안쪽)
+//   - 위반 지속시간/발생시각·최고속도·주소: 최신 geofence_events에서 (지속시간 = now - occurred_at)
 //   - disconnect 상태: 스키마에 없음(violating/compliant 뿐)
 @Singleton
 class SupabaseDashboardRepository @Inject constructor(
@@ -88,16 +87,22 @@ class SupabaseDashboardRepository @Inject constructor(
         val now = Instant.now()
         return carts.map { cart ->
             val status = if (cart.geofenceStatus == "violating") StatusKind.Violation else StatusKind.Compliance
-            val (fracLat, fracLng) = if (status == StatusKind.Violation) {
-                outsideFracs[outsideIdx++ % outsideFracs.size]
+            // 실 좌표(lat/lng)가 있으면 그대로 사용, 없으면 geofence 중심 기준으로 상태별 합성.
+            val position = if (cart.lat != null && cart.lng != null) {
+                LatLng(cart.lat, cart.lng)
             } else {
-                insideFracs[insideIdx++ % insideFracs.size]
+                val (fracLat, fracLng) = if (status == StatusKind.Violation) {
+                    outsideFracs[outsideIdx++ % outsideFracs.size]
+                } else {
+                    insideFracs[insideIdx++ % insideFracs.size]
+                }
+                LatLng(centerLat + fracLat * halfLat, centerLng + fracLng * halfLng)
             }
             val event = latestEventByCart[cart.id]
             val eventAt = event?.let { parseInstant(it.occurredAt) }
             MockCart(
                 id = cart.name,
-                position = LatLng(centerLat + fracLat * halfLat, centerLng + fracLng * halfLng),
+                position = position,
                 status = status,
                 drivingState = if (cart.drivingStatus == "driving") "Driving" else "Idle",
                 registeredId = "SB-%03d".format(cart.id),

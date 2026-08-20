@@ -37,7 +37,10 @@ create table if not exists carts (
     geofence_status text   not null default 'compliant'
         check (geofence_status in ('violating', 'compliant')),
     driving_status  text   not null default 'idle'
-        check (driving_status in ('driving', 'idle'))
+        check (driving_status in ('driving', 'idle')),
+    -- current position (nullable; the map uses it directly when present)
+    lat             double precision,
+    lng             double precision
 );
 
 create table if not exists geofence_events (
@@ -97,12 +100,12 @@ insert into sectors (site_id, name, address, geofence) values
 (1, 'Sector #2', 'Seoul Songpa-gu, Olympic-ro',
  '{"type":"Polygon","coordinates":[[[126.9810,37.5722],[126.9834,37.5724],[126.9852,37.5710],[126.9844,37.5690],[126.9814,37.5687],[126.9800,37.5703],[126.9810,37.5722]]]}');
 
-insert into carts (sector_id, name, geofence_status, driving_status) values
-(1, 'Golfzon County 1', 'violating', 'driving'),
-(1, 'Golfzon County 2', 'compliant', 'driving'),
-(1, 'Golfzon County 3', 'compliant', 'idle'),
-(2, 'Golfzon County 4', 'compliant', 'driving'),
-(2, 'Golfzon County 5', 'compliant', 'idle');
+insert into carts (sector_id, name, geofence_status, driving_status, lat, lng) values
+(1, 'Golfzon County 1', 'violating', 'driving', 37.5690, 126.9820),
+(1, 'Golfzon County 2', 'compliant', 'driving', 37.5665, 126.9782),
+(1, 'Golfzon County 3', 'compliant', 'idle',    37.5670, 126.9790),
+(2, 'Golfzon County 4', 'compliant', 'driving', 37.5706, 126.9826),
+(2, 'Golfzon County 5', 'compliant', 'idle',    37.5700, 126.9820);
 
 insert into geofence_events (cart_id, sector_id, occurred_at, location, max_speed, address) values
 (1, 1, now() - interval '5 minutes',

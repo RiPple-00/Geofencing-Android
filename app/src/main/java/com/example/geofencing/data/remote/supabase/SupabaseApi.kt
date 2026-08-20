@@ -27,7 +27,9 @@ data class SbCart(
     @SerialName("sector_id") val sectorId: Int,
     val name: String,
     @SerialName("geofence_status") val geofenceStatus: String,
-    @SerialName("driving_status") val drivingStatus: String
+    @SerialName("driving_status") val drivingStatus: String,
+    val lat: Double? = null,
+    val lng: Double? = null
 )
 
 @Serializable
