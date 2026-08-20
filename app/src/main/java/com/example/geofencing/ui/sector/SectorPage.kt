@@ -178,13 +178,18 @@ fun SectorPage(
             SectionDivider(top = 56.dp, bottom = 46.dp)
 
             ListSection(title = "All Cart List", count = state.wholeCarts, unit = "Carts") {
-                state.allCarts.forEachIndexed { i, c ->
+                // 현재 페이지에 해당하는 CartsPerPage개만 표시(currentPage는 1..totalPages).
+                val page = currentPage.coerceIn(1, totalPages)
+                val pageCarts = state.allCarts
+                    .drop((page - 1) * CartsPerPage)
+                    .take(CartsPerPage)
+                pageCarts.forEachIndexed { i, c ->
                     CartStateRow(
                         cart = c.cart,
                         drivingState = c.drivingState,
                         kind = c.kind,
                         onClick = { onCartClick(c) },
-                        showDivider = i < state.allCarts.lastIndex
+                        showDivider = i < pageCarts.lastIndex
                     )
                 }
             }
