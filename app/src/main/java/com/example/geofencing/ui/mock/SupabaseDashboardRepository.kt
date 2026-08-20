@@ -1,0 +1,133 @@
+package com.example.geofencing.ui.mock
+
+import com.example.geofencing.data.remote.supabase.SbCart
+import com.example.geofencing.data.remote.supabase.SupabaseApi
+import com.example.geofencing.ui.components.StatusKind
+import com.google.android.gms.maps.model.LatLng
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import java.time.Duration
+import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import javax.inject.Inject
+import javax.inject.Singleton
+
+// DashboardRepository의 Supabase(PostgREST) 구현 — 팀 BE 전까지의 임시 실백엔드.
+// sectors/carts/geofence_events를 읽어 UI 도메인(MockSector/MockCart)으로 조립한다.
+//
+// 스키마에 없는 값의 처리:
+//   - 위치: geofence + 상태 기반으로 합성(위반=경계 밖, 그 외=안쪽)
+//   - 위반 지속시간/발생시각: geofence_events.occurred_at 기준으로 계산(now - occurredAt)
+//   - 최고속도/위반주소: 스키마에 소스 없음 → "—" (필요하면 carts에 컬럼 추가)
+//   - disconnect 상태: 스키마에 없음(violating/compliant 뿐)
+@Singleton
+class SupabaseDashboardRepository @Inject constructor(
+    private val api: SupabaseApi
+) : DashboardRepository {
+
+    override fun observeSectors(): Flow<List<MockSector>> = flow { emit(loadSectors()) }
+
+    override fun observeSector(name: String): Flow<MockSector?> =
+        flow { emit(loadSectors().find { it.name == name }) }
+
+    override fun observeCart(sectorName: String, cartId: String): Flow<MockCart?> =
+        flow { emit(loadSectors().find { it.name == sectorName }?.carts?.find { it.id == cartId }) }
+
+    private suspend fun loadSectors(): List<MockSector> {
+        val sectors = api.getSectors()
+        val events = api.getEvents()
+        val cartsBySector = api.getCarts().groupBy { it.sectorId }
+        val eventsBySector = events.groupBy { it.sectorId }
+        // 카트별 최신 위반 이벤트 발생 시각(지속시간 계산용).
+        val latestEventByCart: Map<Int, Instant?> = events
+            .groupBy { it.cartId }
+            .mapValues { (_, evs) -> evs.mapNotNull { parseInstant(it.occurredAt) }.maxOrNull() }
+
+        return sectors.map { sector ->
+            // GeoJSON 외곽 링 → LatLng. [lng,lat] 순서 뒤집고, 닫힘점(첫=마지막) 제거.
+            val geofence = sector.geofence.coordinates.firstOrNull().orEmpty()
+                .map { LatLng(it[1], it[0]) }
+                .let { ring -> if (ring.size > 1 && ring.first() == ring.last()) ring.dropLast(1) else ring }
+            val sectorCarts = cartsBySector[sector.id].orEmpty()
+            val violationPoints = eventsBySector[sector.id].orEmpty()
+                .map { LatLng(it.location.coordinates[1], it.location.coordinates[0]) }
+            MockSector(
+                id = sector.id,
+                name = sector.name,
+                address = sector.address,
+                totalCarts = sectorCarts.size,
+                geofence = geofence,
+                carts = placeCarts(geofence, sectorCarts, latestEventByCart),
+                violationPoints = violationPoints
+            )
+        }
+    }
+
+    // 실 좌표가 없어 geofence 중심 기준으로 상태별 위치를 합성한다(위반=경계 밖, 그 외=안쪽).
+    // 위반 카트는 최신 이벤트 시각으로 지속시간/발생시각을 채운다.
+    private fun placeCarts(
+        geofence: List<LatLng>,
+        carts: List<SbCart>,
+        latestEventByCart: Map<Int, Instant?>
+    ): List<MockCart> {
+        if (geofence.isEmpty()) return emptyList()
+        val centerLat = geofence.map { it.latitude }.average()
+        val centerLng = geofence.map { it.longitude }.average()
+        val halfLat = (geofence.maxOf { it.latitude } - geofence.minOf { it.latitude }) / 2
+        val halfLng = (geofence.maxOf { it.longitude } - geofence.minOf { it.longitude }) / 2
+        val insideFracs = listOf(
+            0.0 to 0.0, 0.25 to 0.3, -0.3 to 0.2, 0.2 to -0.3,
+            -0.25 to -0.2, 0.35 to 0.1, -0.15 to 0.35, 0.1 to -0.4
+        )
+        val outsideFracs = listOf(1.3 to 0.2, -0.2 to 1.3, 1.2 to -0.9, -1.1 to -0.7)
+        var insideIdx = 0
+        var outsideIdx = 0
+        val now = Instant.now()
+        return carts.map { cart ->
+            val status = if (cart.geofenceStatus == "violating") StatusKind.Violation else StatusKind.Compliance
+            val (fracLat, fracLng) = if (status == StatusKind.Violation) {
+                outsideFracs[outsideIdx++ % outsideFracs.size]
+            } else {
+                insideFracs[insideIdx++ % insideFracs.size]
+            }
+            val eventAt = latestEventByCart[cart.id]
+            MockCart(
+                id = cart.name,
+                position = LatLng(centerLat + fracLat * halfLat, centerLng + fracLng * halfLng),
+                status = status,
+                drivingState = if (cart.drivingStatus == "driving") "Driving" else "Idle",
+                registeredId = "SB-%03d".format(cart.id),
+                timestamp = eventAt?.let { timeFormatter.format(it) } ?: "",
+                // 위반일 때만 채움. 지속시간/발생시각은 이벤트에서 계산, 속도·주소는 소스 없음.
+                violationDuration = if (status == StatusKind.Violation) {
+                    eventAt?.let { formatDuration(Duration.between(it, now)) } ?: "—"
+                } else null,
+                maxSpeed = if (status == StatusKind.Violation) "—" else null,
+                violationAtTime = if (status == StatusKind.Violation) {
+                    eventAt?.let { timeFormatter.format(it) } ?: "—"
+                } else null,
+                violationAtAddress = if (status == StatusKind.Violation) "—" else null
+            )
+        }
+    }
+
+    private fun parseInstant(value: String): Instant? = runCatching {
+        OffsetDateTime.parse(value).toInstant()
+    }.recoverCatching { Instant.parse(value) }.getOrNull()
+
+    // "8m 45s" 또는 1시간 이상이면 "2h 05m" 형식.
+    private fun formatDuration(elapsed: Duration): String {
+        val seconds = elapsed.seconds.coerceAtLeast(0)
+        val hours = seconds / 3600
+        val minutes = (seconds % 3600) / 60
+        val secs = seconds % 60
+        return if (hours > 0) "%dh %02dm".format(hours, minutes) else "%dm %02ds".format(minutes, secs)
+    }
+
+    private companion object {
+        val timeFormatter: DateTimeFormatter =
+            DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm:ss").withZone(ZoneId.systemDefault())
+    }
+}

@@ -36,6 +36,7 @@ class MockDashboardRepository @Inject constructor() : DashboardRepository {
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class DashboardRepositoryModule {
+    // Supabase(임시 실백엔드) 구현으로 바인딩. mock으로 되돌리려면 MockDashboardRepository로 교체.
     @Binds
-    abstract fun bindDashboardRepository(impl: MockDashboardRepository): DashboardRepository
+    abstract fun bindDashboardRepository(impl: SupabaseDashboardRepository): DashboardRepository
 }
