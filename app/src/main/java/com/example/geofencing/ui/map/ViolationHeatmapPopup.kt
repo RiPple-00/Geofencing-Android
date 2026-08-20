@@ -89,7 +89,7 @@ fun ViolationHeatmapPopup(
                 Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     LiveGeofenceMap(
                         content = GeofenceMapContent(geofence = geofence, carts = carts),
-                        camera = MapCamera.FitGeofence(zoomFactor = 1.3f),
+                        camera = MapCamera.FitGeofence(zoomFactor = 1.1f),
                         modifier = Modifier.fillMaxSize()
                     )
                 }
