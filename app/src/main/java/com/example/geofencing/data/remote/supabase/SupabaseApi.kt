@@ -39,7 +39,6 @@ data class SbEvent(
     @SerialName("sector_id") val sectorId: Int,
     @SerialName("occurred_at") val occurredAt: String,
     val location: GeoPoint,
-    val duration: String? = null,
     @SerialName("max_speed") val maxSpeed: String? = null,
     val address: String? = null
 )

@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import java.time.Duration
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneId
@@ -35,7 +36,7 @@ import javax.inject.Singleton
 //
 // 값 처리:
 //   - 위치: carts.lat/lng 사용, 없으면 geofence+상태로 합성(위반=경계 밖, 그 외=안쪽)
-//   - 위반 지속시간·발생시각·속도·주소: geofence_events 컬럼에서(백엔드 값)
+//   - 위반 지속시간: 발생 후 경과 시간(now - occurred_at)으로 계산. 발생시각·속도·주소: 이벤트 컬럼
 //   - disconnect 상태: 스키마에 없음(violating/compliant 뿐)
 @OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
@@ -125,6 +126,7 @@ class SupabaseDashboardRepository @Inject constructor(
         val outsideFracs = listOf(1.3 to 0.2, -0.2 to 1.3, 1.2 to -0.9, -1.1 to -0.7)
         var insideIdx = 0
         var outsideIdx = 0
+        val now = Instant.now()
         return carts.map { cart ->
             val status = if (cart.geofenceStatus == "violating") StatusKind.Violation else StatusKind.Compliance
             val position = if (cart.lat != null && cart.lng != null) {
@@ -146,8 +148,10 @@ class SupabaseDashboardRepository @Inject constructor(
                 drivingState = if (cart.drivingStatus == "driving") "Driving" else "Idle",
                 registeredId = "SB-%03d".format(cart.id),
                 timestamp = eventAt?.let { timeFormatter.format(it) } ?: "",
-                // 위반일 때만 채움. 전부 백엔드 값(이벤트 컬럼).
-                violationDuration = if (status == StatusKind.Violation) event?.duration ?: "—" else null,
+                // 위반일 때만 채움. 지속시간은 발생 후 경과 시간(now - occurred_at), 나머지는 이벤트 컬럼.
+                violationDuration = if (status == StatusKind.Violation) {
+                    eventAt?.let { formatDuration(Duration.between(it, now)) } ?: "—"
+                } else null,
                 maxSpeed = if (status == StatusKind.Violation) event?.maxSpeed ?: "—" else null,
                 violationAtTime = if (status == StatusKind.Violation) {
                     eventAt?.let { timeFormatter.format(it) } ?: "—"
@@ -155,6 +159,15 @@ class SupabaseDashboardRepository @Inject constructor(
                 violationAtAddress = if (status == StatusKind.Violation) event?.address ?: "—" else null
             )
         }
+    }
+
+    // "8m 45s" 또는 1시간 이상이면 "2h 05m" 형식.
+    private fun formatDuration(elapsed: Duration): String {
+        val seconds = elapsed.seconds.coerceAtLeast(0)
+        val hours = seconds / 3600
+        val minutes = (seconds % 3600) / 60
+        val secs = seconds % 60
+        return if (hours > 0) "%dh %02dm".format(hours, minutes) else "%dm %02ds".format(minutes, secs)
     }
 
     private fun parseInstant(value: String): Instant? = runCatching {
