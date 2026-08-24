@@ -51,6 +51,7 @@ create table if not exists geofence_events (
     -- GeoJSON Point: { "type":"Point", "coordinates":[lng,lat] }
     location    jsonb       not null,
     -- violation detail (nullable; shown on the cart detail screen)
+    duration    text,
     max_speed   text,
     address     text
 );
@@ -124,12 +125,12 @@ insert into carts (sector_id, name, geofence_status, driving_status, lat, lng) v
 (2, 'Cart 4',  'compliant', 'driving', 37.5706, 126.9826),
 (2, 'Cart 5',  'compliant', 'idle',    37.5700, 126.9820);
 
-insert into geofence_events (cart_id, sector_id, occurred_at, location, max_speed, address) values
+insert into geofence_events (cart_id, sector_id, occurred_at, location, duration, max_speed, address) values
 ((select id from carts where name = 'Cart 1'), 1, now() - interval '5 minutes',
- '{"type":"Point","coordinates":[126.9820,37.5690]}', '16 Km/h', 'Seoul Jung-gu, Sejong-daero'),
+ '{"type":"Point","coordinates":[126.9820,37.5690]}', '5m 12s', '16 Km/h', 'Seoul Jung-gu, Sejong-daero'),
 ((select id from carts where name = 'Cart 6'), 1, now() - interval '3 minutes',
- '{"type":"Point","coordinates":[126.9820,37.5688]}', '18 Km/h', 'Seoul Jung-gu, Toegye-ro'),
+ '{"type":"Point","coordinates":[126.9820,37.5688]}', '3m 04s', '18 Km/h', 'Seoul Jung-gu, Toegye-ro'),
 ((select id from carts where name = 'Cart 7'), 1, now() - interval '12 minutes',
- '{"type":"Point","coordinates":[126.9748,37.5648]}', '21 Km/h', 'Seoul Jung-gu, Namdaemun-ro'),
+ '{"type":"Point","coordinates":[126.9748,37.5648]}', '12m 30s', '21 Km/h', 'Seoul Jung-gu, Namdaemun-ro'),
 ((select id from carts where name = 'Cart 8'), 1, now() - interval '1 minute',
- '{"type":"Point","coordinates":[126.9800,37.5695]}', '15 Km/h', 'Seoul Jongno-gu, Jong-ro');
+ '{"type":"Point","coordinates":[126.9800,37.5695]}', '1m 08s', '15 Km/h', 'Seoul Jongno-gu, Jong-ro');
