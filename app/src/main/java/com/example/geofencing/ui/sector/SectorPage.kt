@@ -108,6 +108,8 @@ fun SectorPage(
     // 페이지네이션 현재 페이지(로컬). totalPages는 All Cart List 수량에서 자동 계산.
     var currentPage by remember { mutableIntStateOf(1) }
     val totalPages = ((state.wholeCarts + CartsPerPage - 1) / CartsPerPage).coerceAtLeast(1)
+    // 데이터 축소 등으로 currentPage가 범위를 벗어나도 안전하게 보정(슬라이스·페이지 표시 공용).
+    val effectivePage = currentPage.coerceIn(1, totalPages)
     // 배너 지도를 히트맵 오버레이와 공유(movableContentOf) — 열 때 지도를 재생성하지 않아
     // 검은 플래시가 없다. 위치(배너↔오버레이)에 따라 카메라만 바꾼다.
     val mapContent = GeofenceMapContent(geofence = state.geofence, carts = state.carts)
@@ -192,10 +194,9 @@ fun SectorPage(
             SectionDivider(top = 56.dp, bottom = 46.dp)
 
             ListSection(title = "All Cart List", count = state.wholeCarts, unit = "Carts") {
-                // 현재 페이지에 해당하는 CartsPerPage개만 표시(currentPage는 1..totalPages).
-                val page = currentPage.coerceIn(1, totalPages)
+                // 현재 페이지에 해당하는 CartsPerPage개만 표시.
                 val pageCarts = state.allCarts
-                    .drop((page - 1) * CartsPerPage)
+                    .drop((effectivePage - 1) * CartsPerPage)
                     .take(CartsPerPage)
                 pageCarts.forEachIndexed { i, c ->
                     CartStateRow(
@@ -210,7 +211,7 @@ fun SectorPage(
 
             Spacer(modifier = Modifier.height(PaginationGap))
             Pagination(
-                currentPage = currentPage,
+                currentPage = effectivePage,
                 totalPages = totalPages,
                 onPageSelect = { page ->
                     currentPage = page

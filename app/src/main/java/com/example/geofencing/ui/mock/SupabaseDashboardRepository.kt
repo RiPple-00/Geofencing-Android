@@ -96,7 +96,8 @@ class SupabaseDashboardRepository @Inject constructor(
             val violationPoints = eventsBySector[sector.id].orEmpty()
                 .map { LatLng(it.location.coordinates[1], it.location.coordinates[0]) }
             MockSector(
-                // 도메인 id는 Int. 현실적 id 범위(Int 이내)라 안전. TODO: 도메인까지 Long화 검토.
+                // 도메인 id는 Int — 팀 최종 API 스펙이 id를 integer로 정의하므로 도메인은 Int가 맞다.
+                // (bigint는 Supabase 임시 스키마의 기본값일 뿐. 값이 Int 범위 내라 변환 안전.)
                 id = sector.id.toInt(),
                 name = sector.name,
                 address = sector.address,

@@ -3,6 +3,7 @@ package com.example.geofencing.ui.map
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.example.geofencing.ui.components.CloseButton
 import com.example.geofencing.ui.components.noRippleClickable
@@ -63,7 +65,8 @@ fun ViolationHeatmapOverlay(
                     .clip(shape)
                     .background(colors.fillSecondary)
                     .border(1.dp, colors.borderFocus, shape)
-                    .noRippleClickable { } // 팝업 내부 탭은 닫히지 않게 소비
+                    // 팝업 내부 탭 소비(스크림 dismiss 방지). clickable이 아니라 접근성 트리에 클릭 롤을 안 남김.
+                    .pointerInput(Unit) { detectTapGestures {} }
             ) {
                 // 헤더: 타이틀(상하좌 16) + 닫기(우 16).
                 Row(
