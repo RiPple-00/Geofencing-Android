@@ -11,8 +11,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.example.geofencing.R
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -58,6 +60,9 @@ fun LiveGeofenceMap(
         position = CameraPosition.fromLatLngZoom(initialTarget(content, camera), initialZoom(camera))
     }
     var map by remember { mutableStateOf<GmsGoogleMap?>(null) }
+    // 실제 지도 영역 크기(px). FitGeofence가 뷰의 내부 측정 크기(레이아웃 타이밍에 stale할 수 있음)에
+    // 기대지 않고 이 값으로 명시 fit → 지도가 다른 크기 컨테이너로 이동(배너→히트맵)해도 정확히 맞춤.
+    var mapSize by remember { mutableStateOf(IntSize.Zero) }
 
     val mapProperties = remember(minZoom, maxZoom) {
         val defaults = MapProperties()
@@ -120,10 +125,13 @@ fun LiveGeofenceMap(
             // 애니메이션 없이 즉시 geofence 전체에 맞춤(열 때 "화면 이동" 방지). map!=null이면 뷰 크기 확보됨.
             // zoomFactor가 1이 아니면 맞춤 후 배율만큼 추가 확대(줌 레벨은 로그 스케일이라 log2).
             val fitPaddingPx = camera.paddingDp?.let { with(density) { it.dp.roundToPx() } } ?: FitPaddingPx
-            LaunchedEffect(content.geofence, map, camera.zoomFactor, fitPaddingPx) {
-                if (map != null && content.geofence.size >= 3) {
+            // mapSize를 키에 포함 → 컨테이너 크기가 바뀌면(배너→히트맵 오버레이) 새 크기로 다시 fit.
+            LaunchedEffect(content.geofence, map, camera.zoomFactor, fitPaddingPx, mapSize) {
+                if (map != null && content.geofence.size >= 3 && mapSize.width > 0 && mapSize.height > 0) {
                     cameraPositionState.move(
-                        CameraUpdateFactory.newLatLngBounds(boundsOf(content.geofence), fitPaddingPx)
+                        CameraUpdateFactory.newLatLngBounds(
+                            boundsOf(content.geofence), mapSize.width, mapSize.height, fitPaddingPx
+                        )
                     )
                     if (camera.zoomFactor != 1f) {
                         cameraPositionState.move(CameraUpdateFactory.zoomBy(log2(camera.zoomFactor)))
@@ -133,7 +141,7 @@ fun LiveGeofenceMap(
         }
     }
 
-    Box(modifier = modifier) {
+    Box(modifier = modifier.onSizeChanged { mapSize = it }) {
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,

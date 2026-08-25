@@ -21,10 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,10 +42,6 @@ import com.example.geofencing.ui.components.StatusKind
 import com.example.geofencing.ui.components.ViolationRow
 import com.example.geofencing.ui.components.noRippleClickable
 import com.example.geofencing.ui.map.CartMarker
-import com.example.geofencing.ui.map.GeofenceMapContent
-import com.example.geofencing.ui.map.LiveGeofenceMap
-import com.example.geofencing.ui.map.MapCamera
-import com.example.geofencing.ui.map.ViolationHeatmapOverlay
 import com.example.geofencing.ui.theme.Body14
 import com.example.geofencing.ui.theme.GeofencingTheme
 import com.example.geofencing.ui.theme.Header20
@@ -85,8 +78,6 @@ data class SectorUiState(
 
 // TODO(측정): 페이지 레벨 실측값. 지금은 임시 추정치.
 private val SectorMapHeight = 240.dp
-// 배너 라이브 지도에서 geofence 가장자리 여백(dp). FitGeofence padding으로 전달(상하 ~45dp).
-private const val SectorMapGeofenceMarginDp = 45
 private val MapToTitleGap = 42.dp
 private val TitleToAddressGap = 14.dp
 private val AddressToStatGap = 42.dp
@@ -97,6 +88,8 @@ private val PaginationGap = 20.dp
 @Composable
 fun SectorPage(
     state: SectorUiState,
+    // 지도 배너 슬롯. HomeScreen이 히트맵 오버레이와 공유하는 지도를 주입한다(배너에 표시할 때만).
+    bannerMap: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     onHeatmapClick: () -> Unit = {},
     onViolationClick: (SectorViolationEntry) -> Unit = {},
@@ -104,37 +97,22 @@ fun SectorPage(
     onCartClick: (CartStateEntry) -> Unit = {},
     onPageSelect: (Int) -> Unit = {}
 ) {
-    var showHeatmap by rememberSaveable { mutableStateOf(false) }
     // 페이지네이션 현재 페이지(로컬). totalPages는 All Cart List 수량에서 자동 계산.
     var currentPage by remember { mutableIntStateOf(1) }
     val totalPages = ((state.wholeCarts + CartsPerPage - 1) / CartsPerPage).coerceAtLeast(1)
     // 데이터 축소 등으로 currentPage가 범위를 벗어나도 안전하게 보정(슬라이스·페이지 표시 공용).
     val effectivePage = currentPage.coerceIn(1, totalPages)
-    // 배너 지도를 히트맵 오버레이와 공유(movableContentOf) — 열 때 지도를 재생성하지 않아
-    // 검은 플래시가 없다. 위치(배너↔오버레이)에 따라 카메라만 바꾼다.
-    val mapContent = GeofenceMapContent(geofence = state.geofence, carts = state.carts)
-    val movableMap = remember {
-        movableContentOf<GeofenceMapContent, MapCamera> { content, camera ->
-            LiveGeofenceMap(content = content, camera = camera, modifier = Modifier.fillMaxSize())
-        }
-    }
-    val bannerCamera = MapCamera.FitGeofence(paddingDp = SectorMapGeofenceMarginDp)
-    val heatmapCamera = MapCamera.FitGeofence(zoomFactor = 1.1f)
 
-    Box(modifier = modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = PageBottomGap)
-        ) {
-        // 지도 배너는 full-bleed. 지도는 히트맵이 닫혀 있을 때만 배너에(열리면 오버레이로 이동).
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(bottom = PageBottomGap)
+    ) {
+        // 지도 배너는 full-bleed. 지도(bannerMap)는 HomeScreen이 히트맵 오버레이와 공유해 주입한다.
         SectorMapBanner(
-            map = { if (!showHeatmap) movableMap(mapContent, bannerCamera) },
-            onHeatmapClick = {
-                showHeatmap = true
-                onHeatmapClick()
-            }
+            map = bannerMap,
+            onHeatmapClick = onHeatmapClick
         )
 
         // 나머지 콘텐츠는 좌우 공통 여백 적용.
@@ -218,14 +196,6 @@ fun SectorPage(
                     onPageSelect(page)
                 },
                 modifier = Modifier.fillMaxWidth()
-            )
-        }
-        }
-
-        if (showHeatmap) {
-            ViolationHeatmapOverlay(
-                onDismiss = { showHeatmap = false },
-                map = { movableMap(mapContent, heatmapCamera) }
             )
         }
     }
@@ -349,6 +319,6 @@ private fun paginationItems(current: Int, total: Int): List<PageItem> {
 @Composable
 private fun SectorPagePreview() {
     GeofencingTheme {
-        SectorPage(state = sampleSectorState())
+        SectorPage(state = sampleSectorState(), bannerMap = {})
     }
 }
