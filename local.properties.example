@@ -5,3 +5,8 @@
 sdk.dir=/Users/yourname/Library/Android/sdk
 
 MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY_HERE
+
+# Supabase (interim backend)
+# anon(publishable) key만 넣으세요. DB password / service_role key는 절대 금지.
+SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+SUPABASE_ANON_KEY=sb_publishable_YOUR_PUBLISHABLE_KEY_HERE

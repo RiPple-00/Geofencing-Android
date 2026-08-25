@@ -1,7 +1,9 @@
 package com.example.geofencing.ui.map
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,35 +18,37 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.example.geofencing.ui.components.CloseButton
+import com.example.geofencing.ui.components.noRippleClickable
 import com.example.geofencing.ui.theme.Label18
 import com.example.geofencing.ui.theme.extendedColors
-import com.google.android.gms.maps.model.LatLng
-// CartMarker는 같은 패키지(ui.map)라 import 불필요
 
 // 팝업 박스: 상하 102 / 좌우 16 인셋, 8dp 라운드, border-focus 1dp, fill-secondary 배경.
 private val HeatmapPopupVerticalMargin = 102.dp
 private val HeatmapPopupHorizontalMargin = 16.dp
 private val HeatmapPopupCorner = 8.dp
-// 헤더(타이틀/닫기) 패딩.
 private val HeatmapHeaderPadding = 16.dp
+// 뒤 화면을 어둡게 덮는 스크림(Dialog 딤과 유사).
+private val HeatmapScrimColor = Color(0x99000000)
 
-// Sector의 "Violation Heatmap" 진입 시 뜨는 팝업. 타이틀 헤더 + 섹터 전체가 보이는 고정 지도(FitGeofence)
-// + geofence 경계 + 위반 발생 위치 히트맵. 닫기 버튼으로 dismiss.
+// Sector의 "Violation Heatmap" 오버레이. Dialog가 아니라 화면 내 오버레이 —
+// 지도는 배너에서 이미 로드된 것을 movableContentOf로 옮겨 받으므로(map 슬롯), 열 때 재생성/검은 플래시가 없다.
+// 스크림 탭 / 뒤로가기 / 닫기 버튼으로 dismiss.
 @Composable
-fun ViolationHeatmapPopup(
-    geofence: List<LatLng>,
-    carts: List<CartMarker>,
-    violationPoints: List<LatLng>,
-    onDismiss: () -> Unit
+fun ViolationHeatmapOverlay(
+    onDismiss: () -> Unit,
+    map: @Composable () -> Unit
 ) {
     val colors = MaterialTheme.extendedColors
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+    BackHandler(onBack = onDismiss)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(HeatmapScrimColor)
+            .noRippleClickable(onDismiss) // 바깥 탭으로 닫기
     ) {
         Box(
             modifier = Modifier
@@ -61,6 +65,8 @@ fun ViolationHeatmapPopup(
                     .clip(shape)
                     .background(colors.fillSecondary)
                     .border(1.dp, colors.borderFocus, shape)
+                    // 팝업 내부 탭 소비(스크림 dismiss 방지). clickable이 아니라 접근성 트리에 클릭 롤을 안 남김.
+                    .pointerInput(Unit) { detectTapGestures {} }
             ) {
                 // 헤더: 타이틀(상하좌 16) + 닫기(우 16).
                 Row(
@@ -84,14 +90,9 @@ fun ViolationHeatmapPopup(
                     )
                 }
 
-                // 지도(남은 공간). TODO: 위반 히트맵은 기본 green→red 그라디언트가 흉해서 제거.
-                // 재도입 시 앱 톤에 맞는 단색(red) 반투명 그라디언트로 스타일링 + 실데이터 필요.
+                // 지도(남은 공간) — 배너에서 옮겨온 이미 로드된 지도.
                 Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                    LiveGeofenceMap(
-                        content = GeofenceMapContent(geofence = geofence, carts = carts),
-                        camera = MapCamera.FitGeofence(zoomFactor = 1.3f),
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    map()
                 }
             }
         }

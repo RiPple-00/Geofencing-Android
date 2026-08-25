@@ -22,7 +22,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,7 +48,7 @@ import com.example.geofencing.ui.map.CartMarker
 import com.example.geofencing.ui.map.GeofenceMapContent
 import com.example.geofencing.ui.map.LiveGeofenceMap
 import com.example.geofencing.ui.map.MapCamera
-import com.example.geofencing.ui.map.ViolationHeatmapPopup
+import com.example.geofencing.ui.map.ViolationHeatmapOverlay
 import com.example.geofencing.ui.theme.Body14
 import com.example.geofencing.ui.theme.GeofencingTheme
 import com.example.geofencing.ui.theme.Header20
@@ -102,19 +104,33 @@ fun SectorPage(
     onCartClick: (CartStateEntry) -> Unit = {},
     onPageSelect: (Int) -> Unit = {}
 ) {
-    var showHeatmap by remember { mutableStateOf(false) }
+    var showHeatmap by rememberSaveable { mutableStateOf(false) }
     // 페이지네이션 현재 페이지(로컬). totalPages는 All Cart List 수량에서 자동 계산.
     var currentPage by remember { mutableIntStateOf(1) }
     val totalPages = ((state.wholeCarts + CartsPerPage - 1) / CartsPerPage).coerceAtLeast(1)
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(bottom = PageBottomGap)
-    ) {
-        // 지도 배너는 full-bleed(좌우 여백 없이 가장자리까지).
+    // 데이터 축소 등으로 currentPage가 범위를 벗어나도 안전하게 보정(슬라이스·페이지 표시 공용).
+    val effectivePage = currentPage.coerceIn(1, totalPages)
+    // 배너 지도를 히트맵 오버레이와 공유(movableContentOf) — 열 때 지도를 재생성하지 않아
+    // 검은 플래시가 없다. 위치(배너↔오버레이)에 따라 카메라만 바꾼다.
+    val mapContent = GeofenceMapContent(geofence = state.geofence, carts = state.carts)
+    val movableMap = remember {
+        movableContentOf<GeofenceMapContent, MapCamera> { content, camera ->
+            LiveGeofenceMap(content = content, camera = camera, modifier = Modifier.fillMaxSize())
+        }
+    }
+    val bannerCamera = MapCamera.FitGeofence(paddingDp = SectorMapGeofenceMarginDp)
+    val heatmapCamera = MapCamera.FitGeofence(zoomFactor = 1.1f)
+
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = PageBottomGap)
+        ) {
+        // 지도 배너는 full-bleed. 지도는 히트맵이 닫혀 있을 때만 배너에(열리면 오버레이로 이동).
         SectorMapBanner(
-            content = GeofenceMapContent(geofence = state.geofence, carts = state.carts),
+            map = { if (!showHeatmap) movableMap(mapContent, bannerCamera) },
             onHeatmapClick = {
                 showHeatmap = true
                 onHeatmapClick()
@@ -178,20 +194,24 @@ fun SectorPage(
             SectionDivider(top = 56.dp, bottom = 46.dp)
 
             ListSection(title = "All Cart List", count = state.wholeCarts, unit = "Carts") {
-                state.allCarts.forEachIndexed { i, c ->
+                // 현재 페이지에 해당하는 CartsPerPage개만 표시.
+                val pageCarts = state.allCarts
+                    .drop((effectivePage - 1) * CartsPerPage)
+                    .take(CartsPerPage)
+                pageCarts.forEachIndexed { i, c ->
                     CartStateRow(
                         cart = c.cart,
                         drivingState = c.drivingState,
                         kind = c.kind,
                         onClick = { onCartClick(c) },
-                        showDivider = i < state.allCarts.lastIndex
+                        showDivider = i < pageCarts.lastIndex
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(PaginationGap))
             Pagination(
-                currentPage = currentPage,
+                currentPage = effectivePage,
                 totalPages = totalPages,
                 onPageSelect = { page ->
                     currentPage = page
@@ -200,22 +220,21 @@ fun SectorPage(
                 modifier = Modifier.fillMaxWidth()
             )
         }
-    }
+        }
 
-    if (showHeatmap) {
-        ViolationHeatmapPopup(
-            geofence = state.geofence,
-            carts = state.carts,
-            violationPoints = state.violationPoints,
-            onDismiss = { showHeatmap = false }
-        )
+        if (showHeatmap) {
+            ViolationHeatmapOverlay(
+                onDismiss = { showHeatmap = false },
+                map = { movableMap(mapContent, heatmapCamera) }
+            )
+        }
     }
 }
 
 // 지도 배너(라이브, geofence 전체가 보이게 고정 프레임) + "Violation Heatmap >" 진입.
 @Composable
 private fun SectorMapBanner(
-    content: GeofenceMapContent,
+    map: @Composable () -> Unit,
     onHeatmapClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -225,11 +244,7 @@ private fun SectorMapBanner(
             .height(SectorMapHeight),
         contentAlignment = Alignment.BottomCenter
     ) {
-        LiveGeofenceMap(
-            content = content,
-            camera = MapCamera.FitGeofence(paddingDp = SectorMapGeofenceMarginDp),
-            modifier = Modifier.fillMaxSize()
-        )
+        map()
         Row(
             modifier = Modifier
                 .noRippleClickable(onHeatmapClick)

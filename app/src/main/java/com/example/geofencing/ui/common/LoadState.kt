@@ -8,3 +8,11 @@ sealed interface LoadState<out T> {
     data class Success<out T>(val data: T) : LoadState<T>
     data class Error(val message: String) : LoadState<Nothing>
 }
+
+// Success의 데이터만 변환한다(Loading/Error는 그대로 통과). Repository의 LoadState<도메인>을
+// UI state로 옮길 때 쓴다.
+inline fun <T, R> LoadState<T>.map(transform: (T) -> R): LoadState<R> = when (this) {
+    is LoadState.Success -> LoadState.Success(transform(data))
+    is LoadState.Error -> LoadState.Error(message)
+    LoadState.Loading -> LoadState.Loading
+}

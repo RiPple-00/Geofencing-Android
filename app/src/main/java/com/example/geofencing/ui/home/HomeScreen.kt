@@ -40,7 +40,6 @@ private const val APP_TITLE = "Geofence"
 // 탭/드릴다운 선택 상태는 여기서 소유하고, 각 화면 데이터는 ViewModel(→ Repository)에서 관찰한다.
 @Composable
 fun HomeScreen(
-    sectorNames: List<String>,
     wholeSectorState: LoadState<WholeSectorUiState>,
     modifier: Modifier = Modifier,
     onWholeSectorRetry: () -> Unit = {},
@@ -59,8 +58,14 @@ fun HomeScreen(
     val cartViewModel: CartViewModel = hiltViewModel()
     val analytics = LocalAnalytics.current
 
+    // 탭 이름은 로드된 WholeSector 상태(Supabase)의 섹터 목록에서 파생 → 실데이터와 일관.
+    val sectorNames = (wholeSectorState as? LoadState.Success)?.data?.sectors?.map { it.name }.orEmpty()
+    // 로딩/에러 중엔 sectorNames가 비어, 복원된 selectedIndex가 탭 수를 초과할 수 있다(탭 스크롤 크래시).
+    // 읽기용 인덱스는 항상 0..sectorNames.size로 보정(원본 selectedIndex는 데이터 로드 후 그대로 복원됨).
+    val safeIndex = selectedIndex.coerceIn(0, sectorNames.size)
+
     // 선택 탭/드릴다운을 각 ViewModel에 반영.
-    val sectorName = sectorNames.getOrNull(selectedIndex - 1).orEmpty()
+    val sectorName = sectorNames.getOrNull(safeIndex - 1).orEmpty()
     LaunchedEffect(sectorName) { if (sectorName.isNotEmpty()) sectorViewModel.select(sectorName) }
     LaunchedEffect(openCartTarget) { openCartTarget?.let { cartViewModel.select(it.first, it.second) } }
 
@@ -76,7 +81,7 @@ fun HomeScreen(
     // 화면 진입 로그(어느 화면을 보고 있나).
     val currentScreen = when {
         openCartTarget != null -> "CartPage"
-        selectedIndex == 0 -> "WholeSectorPage"
+        safeIndex == 0 -> "WholeSectorPage"
         else -> "SectorPage"
     }
     LaunchedEffect(currentScreen) { analytics.screen(currentScreen) }
@@ -102,7 +107,7 @@ fun HomeScreen(
             )
             SectorTabRow(
                 sectorNames = sectorNames,
-                selectedIndex = selectedIndex,
+                selectedIndex = safeIndex,
                 // 탭 전환 시 열린 카트는 닫는다.
                 onSelect = {
                     analytics.log(AnalyticsEvent.TabSelected(it))
@@ -130,7 +135,7 @@ fun HomeScreen(
                     CartPage(state = cart, onBack = { openCartTarget = null })
                 }
             } else {
-                when (selectedIndex) {
+                when (safeIndex) {
                     0 -> LoadStateContent(
                         state = wholeSectorState,
                         onRetry = {

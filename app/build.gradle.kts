@@ -35,6 +35,13 @@ android {
         // 실기기/실제 BE 서버로 테스트할 때는 local.properties에 BASE_URL=http://<ip>:3000/api/ 를 추가하면 된다.
         val baseUrl = localProperties.getProperty("BASE_URL", "").ifBlank { "http://10.0.2.2:3000/api/" }
         buildConfigField("String", "BASE_URL", "\"$baseUrl\"")
+
+        // Supabase (interim backend). Put SUPABASE_URL / SUPABASE_ANON_KEY in local.properties.
+        // The anon (publishable) key is client-safe; never put the DB password or service_role key here.
+        val supabaseUrl = localProperties.getProperty("SUPABASE_URL", "").ifBlank { "https://localhost/" }
+        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
+        val supabaseKey = localProperties.getProperty("SUPABASE_ANON_KEY", "")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseKey\"")
     }
 
     buildTypes {
