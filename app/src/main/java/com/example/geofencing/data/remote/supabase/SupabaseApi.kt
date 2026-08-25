@@ -13,9 +13,10 @@ data class GeoPolygon(val type: String, val coordinates: List<List<List<Double>>
 @Serializable
 data class GeoPoint(val type: String, val coordinates: List<Double>)
 
+// id/FK는 스키마가 bigint이므로 Long으로 받는다(Int면 큰 값 역직렬화 실패/오버플로).
 @Serializable
 data class SbSector(
-    val id: Int,
+    val id: Long,
     val name: String,
     val address: String,
     val geofence: GeoPolygon
@@ -23,8 +24,8 @@ data class SbSector(
 
 @Serializable
 data class SbCart(
-    val id: Int,
-    @SerialName("sector_id") val sectorId: Int,
+    val id: Long,
+    @SerialName("sector_id") val sectorId: Long,
     val name: String,
     @SerialName("geofence_status") val geofenceStatus: String,
     @SerialName("driving_status") val drivingStatus: String,
@@ -34,9 +35,9 @@ data class SbCart(
 
 @Serializable
 data class SbEvent(
-    val id: Int,
-    @SerialName("cart_id") val cartId: Int,
-    @SerialName("sector_id") val sectorId: Int,
+    val id: Long,
+    @SerialName("cart_id") val cartId: Long,
+    @SerialName("sector_id") val sectorId: Long,
     @SerialName("occurred_at") val occurredAt: String,
     val location: GeoPoint,
     @SerialName("max_speed") val maxSpeed: String? = null,

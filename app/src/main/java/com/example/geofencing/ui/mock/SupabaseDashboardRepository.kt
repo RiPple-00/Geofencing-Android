@@ -83,7 +83,7 @@ class SupabaseDashboardRepository @Inject constructor(
         val cartsBySector = api.getCarts().groupBy { it.sectorId }
         val eventsBySector = events.groupBy { it.sectorId }
         // 카트별 최신 위반 이벤트(지속시간·속도·주소용).
-        val latestEventByCart: Map<Int, SbEvent> = events
+        val latestEventByCart: Map<Long, SbEvent> = events
             .groupBy { it.cartId }
             .mapValues { (_, evs) -> evs.maxByOrNull { parseInstant(it.occurredAt) ?: Instant.MIN }!! }
 
@@ -96,7 +96,8 @@ class SupabaseDashboardRepository @Inject constructor(
             val violationPoints = eventsBySector[sector.id].orEmpty()
                 .map { LatLng(it.location.coordinates[1], it.location.coordinates[0]) }
             MockSector(
-                id = sector.id,
+                // 도메인 id는 Int. 현실적 id 범위(Int 이내)라 안전. TODO: 도메인까지 Long화 검토.
+                id = sector.id.toInt(),
                 name = sector.name,
                 address = sector.address,
                 totalCarts = sectorCarts.size,
@@ -112,7 +113,7 @@ class SupabaseDashboardRepository @Inject constructor(
     private fun placeCarts(
         geofence: List<LatLng>,
         carts: List<SbCart>,
-        latestEventByCart: Map<Int, SbEvent>
+        latestEventByCart: Map<Long, SbEvent>
     ): List<MockCart> {
         if (geofence.isEmpty()) return emptyList()
         val centerLat = geofence.map { it.latitude }.average()

@@ -10,9 +10,9 @@ sealed interface LoadState<out T> {
 }
 
 // Success의 데이터만 변환한다(Loading/Error는 그대로 통과). Repository의 LoadState<도메인>을
-// UI state로 옮길 때 쓴다. Loading/Error는 T를 담지 않으므로 LoadState<R>로 안전하게 통과시킨다.
-@Suppress("UNCHECKED_CAST")
+// UI state로 옮길 때 쓴다.
 inline fun <T, R> LoadState<T>.map(transform: (T) -> R): LoadState<R> = when (this) {
     is LoadState.Success -> LoadState.Success(transform(data))
-    else -> this as LoadState<R>
+    is LoadState.Error -> LoadState.Error(message)
+    LoadState.Loading -> LoadState.Loading
 }

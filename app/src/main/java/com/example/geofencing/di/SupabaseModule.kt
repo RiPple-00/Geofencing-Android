@@ -41,6 +41,9 @@ object SupabaseModule {
                     } else {
                         HttpLoggingInterceptor.Level.NONE
                     }
+                    // 디버그 BODY 로깅이 인증 헤더(apikey/Bearer)를 Logcat에 남기지 않도록 마스킹.
+                    redactHeader("apikey")
+                    redactHeader("Authorization")
                 }
             )
             .build()
