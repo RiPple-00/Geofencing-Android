@@ -7,6 +7,7 @@ import com.example.geofencing.ui.common.LoadState
 import com.example.geofencing.ui.common.map
 import com.example.geofencing.ui.components.StatusKind
 import com.google.android.gms.maps.model.LatLng
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -53,12 +54,16 @@ class SupabaseDashboardRepository @Inject constructor(
             .flatMapLatest {
                 flow {
                     emit(LoadState.Loading)
-                    emit(
-                        runCatching { loadSectors() }.fold(
-                            onSuccess = { LoadState.Success(it) },
-                            onFailure = { LoadState.Error(it.message ?: "Failed to load data") }
-                        )
-                    )
+                    // runCatching는 CancellationException까지 삼켜 구조적 취소를 깨므로,
+                    // 취소는 다시 던지고 그 외 실패만 Error로 변환한다.
+                    val result: LoadState<List<MockSector>> = try {
+                        LoadState.Success(loadSectors())
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        LoadState.Error(e.message ?: "Failed to load data")
+                    }
+                    emit(result)
                 }
             }
             .stateIn(scope, SharingStarted.WhileSubscribed(5_000), LoadState.Loading)
