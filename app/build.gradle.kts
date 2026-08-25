@@ -15,6 +15,15 @@ val localProperties = Properties().apply {
     }
 }
 
+// Release signing — read from gitignored keystore.properties (see keystore.properties.example).
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+val hasReleaseSigning = keystoreProperties.getProperty("storeFile") != null
+
 android {
     namespace = "com.example.geofencing"
     compileSdk = 37
@@ -44,6 +53,17 @@ android {
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseKey\"")
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -51,6 +71,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Sign with the release key when keystore.properties is present; otherwise
+            // the build stays unsigned (e.g. CI without secrets) rather than failing.
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {
