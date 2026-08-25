@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -26,6 +27,7 @@ import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -105,6 +107,20 @@ fun SectorPage(
     onPageSelect: (Int) -> Unit = {}
 ) {
     var showHeatmap by rememberSaveable { mutableStateOf(false) }
+    // 지도를 배너에 렌더할지 여부. 히트맵 open/close 전환의 flicker 마스킹을 위해 showHeatmap(오버레이 표시)과
+    // 분리한다. 닫을 때: 오버레이(스크림)가 아직 떠 있는 동안 지도를 배너로 되돌려(배너 카메라로 재-fit) 그
+    // 프레임을 스크림 뒤에 숨긴 뒤, 다음 프레임에 오버레이를 제거한다 → 배너에 1.1x가 잠깐 비치지 않는다.
+    var mapInBanner by remember { mutableStateOf(!showHeatmap) }
+    var closingHeatmap by remember { mutableStateOf(false) }
+    LaunchedEffect(closingHeatmap) {
+        if (closingHeatmap) {
+            mapInBanner = true      // 지도 배너 복귀 → 배너 카메라로 재-fit(오버레이 뒤에서)
+            withFrameNanos {}       // 재-fit이 그려질 때까지 대기(스크림이 가림)
+            withFrameNanos {}
+            showHeatmap = false     // 오버레이 제거(배너는 이미 배너 프레임으로 정착)
+            closingHeatmap = false
+        }
+    }
     // 페이지네이션 현재 페이지(로컬). totalPages는 All Cart List 수량에서 자동 계산.
     var currentPage by remember { mutableIntStateOf(1) }
     val totalPages = ((state.wholeCarts + CartsPerPage - 1) / CartsPerPage).coerceAtLeast(1)
@@ -130,8 +146,9 @@ fun SectorPage(
         ) {
         // 지도 배너는 full-bleed. 지도는 히트맵이 닫혀 있을 때만 배너에(열리면 오버레이로 이동).
         SectorMapBanner(
-            map = { if (!showHeatmap) movableMap(mapContent, bannerCamera) },
+            map = { if (mapInBanner) movableMap(mapContent, bannerCamera) },
             onHeatmapClick = {
+                mapInBanner = false
                 showHeatmap = true
                 onHeatmapClick()
             }
@@ -224,8 +241,8 @@ fun SectorPage(
 
         if (showHeatmap) {
             ViolationHeatmapOverlay(
-                onDismiss = { showHeatmap = false },
-                map = { movableMap(mapContent, heatmapCamera) }
+                onDismiss = { closingHeatmap = true },
+                map = { if (!mapInBanner) movableMap(mapContent, heatmapCamera) }
             )
         }
     }
