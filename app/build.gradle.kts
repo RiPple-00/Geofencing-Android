@@ -22,7 +22,14 @@ val keystoreProperties = Properties().apply {
         file.inputStream().use { load(it) }
     }
 }
-val hasReleaseSigning = keystoreProperties.getProperty("storeFile") != null
+// 서명하려면 네 속성이 모두 있고 keystore 파일이 실제로 존재해야 한다. 하나라도 빠지면 서명을
+// 구성하지 않고 미서명으로 빌드(예: 시크릿 없는 CI) — 부분 설정으로 릴리스 빌드가 실패하지 않게.
+val hasReleaseSigning = keystoreProperties.getProperty("storeFile")?.let { storeFileName ->
+    keystoreProperties.getProperty("storePassword") != null &&
+        keystoreProperties.getProperty("keyAlias") != null &&
+        keystoreProperties.getProperty("keyPassword") != null &&
+        rootProject.file(storeFileName).exists()
+} ?: false
 
 android {
     namespace = "com.example.geofencing"
