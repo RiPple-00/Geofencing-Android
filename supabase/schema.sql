@@ -27,7 +27,9 @@ create table if not exists sectors (
     -- GeoJSON Polygon: { "type":"Polygon", "coordinates":[[[lng,lat], ...]] }
     -- Note: coordinates are [lng, lat] (lng first) and the ring is closed
     -- (first point == last point), per GeoJSON (RFC 7946).
-    geofence jsonb  not null
+    geofence jsonb  not null,
+    -- 앱이 sector를 이름으로 조회하므로(사이트 내) 이름 유일성을 보장한다.
+    unique (site_id, name)
 );
 
 create table if not exists carts (
@@ -40,7 +42,9 @@ create table if not exists carts (
         check (driving_status in ('driving', 'idle')),
     -- current position (nullable; the map uses it directly when present)
     lat             double precision,
-    lng             double precision
+    lng             double precision,
+    -- 앱이 cart를 (섹터 내) 이름으로 식별하므로 이름 유일성을 보장한다.
+    unique (sector_id, name)
 );
 
 create table if not exists geofence_events (

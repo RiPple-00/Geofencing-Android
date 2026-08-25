@@ -102,8 +102,8 @@ class SupabaseDashboardRepository @Inject constructor(
                 .map { LatLng(it.location.coordinates[1], it.location.coordinates[0]) }
             MockSector(
                 // 도메인 id는 Int — 팀 최종 API 스펙이 id를 integer로 정의하므로 도메인은 Int가 맞다.
-                // (bigint는 Supabase 임시 스키마의 기본값일 뿐. 값이 Int 범위 내라 변환 안전.)
-                id = sector.id.toInt(),
+                // bigint가 Int 범위를 넘으면 조용히 잘리지 않고 예외 → 상위에서 LoadState.Error로 처리(무결성 보호).
+                id = Math.toIntExact(sector.id),
                 name = sector.name,
                 address = sector.address,
                 totalCarts = sectorCarts.size,
