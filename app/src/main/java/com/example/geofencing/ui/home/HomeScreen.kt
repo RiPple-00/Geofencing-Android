@@ -106,13 +106,12 @@ fun HomeScreen(
             closingHeatmap = false
         }
     }
-    // 섹터 페이지를 벗어나면(전체 탭/카트 상세) 히트맵을 닫는다.
+    // 선택 탭이 바뀌면(전체/다른 섹터) 또는 카트 상세로 들어가면 히트맵을 닫는다.
+    // safeIndex 변화 = 다른 섹터로 전환도 포함 → 스크림 아래 stale 상태(빈 배너/재등장) 방지.
     LaunchedEffect(safeIndex, openCartTarget) {
-        if (safeIndex == 0 || openCartTarget != null) {
-            showHeatmap = false
-            mapInBanner = true
-            closingHeatmap = false
-        }
+        showHeatmap = false
+        mapInBanner = true
+        closingHeatmap = false
     }
     // 현재 섹터의 지도 콘텐츠(배너/히트맵 공용). Success일 때만 존재.
     val sectorMapContent = (sectorState as? LoadState.Success)?.data

@@ -22,13 +22,15 @@ val keystoreProperties = Properties().apply {
         file.inputStream().use { load(it) }
     }
 }
-// 서명하려면 네 속성이 모두 있고 keystore 파일이 실제로 존재해야 한다. 하나라도 빠지면 서명을
-// 구성하지 않고 미서명으로 빌드(예: 시크릿 없는 CI) — 부분 설정으로 릴리스 빌드가 실패하지 않게.
-val hasReleaseSigning = keystoreProperties.getProperty("storeFile")?.let { storeFileName ->
-    keystoreProperties.getProperty("storePassword") != null &&
-        keystoreProperties.getProperty("keyAlias") != null &&
-        keystoreProperties.getProperty("keyPassword") != null &&
-        rootProject.file(storeFileName).exists()
+// 서명하려면 네 속성이 모두 non-blank이고 storeFile이 실제 "파일"(디렉터리·빈 경로 아님)이어야 한다.
+// 하나라도 빠지면 서명을 구성하지 않고 미서명으로 빌드(예: 시크릿 없는 CI) — 부분/오설정으로
+// 릴리스 빌드가 실패하지 않게. (isFile: 빈 문자열은 프로젝트 루트로, 디렉터리는 exists()로 통과하던 허점 차단.)
+fun Properties.nonBlank(key: String) = getProperty(key)?.takeIf { it.isNotBlank() }
+val hasReleaseSigning = keystoreProperties.nonBlank("storeFile")?.let { storeFileName ->
+    keystoreProperties.nonBlank("storePassword") != null &&
+        keystoreProperties.nonBlank("keyAlias") != null &&
+        keystoreProperties.nonBlank("keyPassword") != null &&
+        rootProject.file(storeFileName).isFile
 } ?: false
 
 android {
