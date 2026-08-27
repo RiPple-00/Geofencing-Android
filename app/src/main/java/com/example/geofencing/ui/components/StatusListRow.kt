@@ -69,6 +69,9 @@ fun StatusListRow(
     modifier: Modifier = Modifier,
     data1Width: Dp = 100.dp,
     data2Width: Dp = 78.dp,
+    // data2 색은 사용처마다 다름: 보조 라벨(섹터)은 기본값 border/strong(흐림), 의미 있는 값(주행상태)은
+    // 호출부에서 text/secondary로 올려 밝게 유지한다.
+    data2Color: Color = MaterialTheme.extendedColors.borderStrong,
     showDivider: Boolean = true
 ) {
     val colors = MaterialTheme.extendedColors
@@ -99,7 +102,7 @@ fun StatusListRow(
                     .width(data2Width)
                     .padding(horizontal = ColumnHorizontalPadding),
                 style = Body14,
-                color = colors.textSecondary,
+                color = data2Color,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
