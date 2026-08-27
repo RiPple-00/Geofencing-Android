@@ -72,7 +72,10 @@ fun LiveGeofenceMap(
             maxZoomPreference = maxZoom ?: defaults.maxZoomPreference
         )
     }
-    val uiSettings = remember(gesturesEnabled) {
+    // 팬(스크롤)은 FitGeofence(히트맵 전체 조망)에서만 허용. FollowCart(카트 추적)는 팬을 켜면
+    // idle 재중심 로직과 충돌하므로 끈다.
+    val panEnabled = gesturesEnabled && camera is MapCamera.FitGeofence
+    val uiSettings = remember(gesturesEnabled, panEnabled) {
         MapUiSettings(
             compassEnabled = false,
             indoorLevelPickerEnabled = false,
@@ -81,9 +84,8 @@ fun LiveGeofenceMap(
             rotationGesturesEnabled = false,
             tiltGesturesEnabled = false,
             zoomControlsEnabled = false,
-            // 팬(스크롤)은 꺼서 중심이 카트에서 벗어나지 않게 하고, 줌만 허용.
-            scrollGesturesEnabled = false,
-            scrollGesturesEnabledDuringRotateOrZoom = false,
+            scrollGesturesEnabled = panEnabled,
+            scrollGesturesEnabledDuringRotateOrZoom = panEnabled,
             zoomGesturesEnabled = gesturesEnabled
         )
     }
