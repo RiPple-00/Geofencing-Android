@@ -35,6 +35,7 @@ import com.example.geofencing.ui.map.MapCamera
 import com.example.geofencing.ui.map.ViolationHeatmapOverlay
 import com.example.geofencing.ui.sector.SectorPage
 import com.example.geofencing.ui.sector.SectorViewModel
+import com.example.geofencing.ui.search.SearchOverlay
 import com.example.geofencing.ui.theme.extendedColors
 import com.example.geofencing.ui.wholesector.WholeSectorPage
 import com.example.geofencing.ui.wholesector.WholeSectorUiState
@@ -62,6 +63,8 @@ fun HomeScreen(
     // rememberSaveable: selectedIndex와 동일하게 구성 변경(회전 등)·프로세스 종료에도 보존.
     // Pair<String,String>은 Serializable이라 별도 Saver 없이 저장됨.
     var openCartTarget by rememberSaveable { mutableStateOf<Pair<String, String>?>(null) }
+    // 검색 오버레이 표시 여부.
+    var showSearch by rememberSaveable { mutableStateOf(false) }
 
     // Violation Heatmap 오버레이 — 앱 최상단 레이어(크롬 위)로 띄우기 위해 SectorPage가 아닌 여기서 소유한다.
     // 지도는 배너와 공유(movableContentOf)해 열 때 검은 플래시가 없다. showHeatmap=오버레이 표시,
@@ -148,6 +151,7 @@ fun HomeScreen(
         ) {
             AppTopBar(
                 title = APP_TITLE,
+                onSearchClick = { showSearch = true },
                 onBellClick = {
                     analytics.log(AnalyticsEvent.BellClicked)
                     onBellClick()
@@ -240,6 +244,24 @@ fun HomeScreen(
             ViolationHeatmapOverlay(
                 onDismiss = { closingHeatmap = true },
                 map = { if (!mapInBanner) movableMap(sectorMapContent, heatmapCamera) }
+            )
+        }
+    }
+
+        // 검색 오버레이(상단 검색 버튼). 결과 클릭 시 탭 전환/카트 드릴다운.
+        if (showSearch) {
+            SearchOverlay(
+                onSectorSelect = { name ->
+                    val idx = sectorNames.indexOf(name)
+                    if (idx >= 0) selectedIndex = idx + 1
+                    openCartTarget = null
+                    showSearch = false
+                },
+                onCartSelect = { sector, cart ->
+                    openCartTarget = sector to cart
+                    showSearch = false
+                },
+                onDismiss = { showSearch = false }
             )
         }
     }
