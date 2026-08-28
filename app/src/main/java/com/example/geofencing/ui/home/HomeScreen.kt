@@ -36,6 +36,7 @@ import com.example.geofencing.ui.components.SectorTabRow
 import com.example.geofencing.ui.map.GeofenceMapContent
 import com.example.geofencing.ui.map.LiveGeofenceMap
 import com.example.geofencing.ui.map.MapCamera
+import com.example.geofencing.ui.map.MapZoom100Percent
 import com.example.geofencing.ui.map.ViolationHeatmapOverlay
 import com.example.geofencing.ui.sector.SectorPage
 import com.example.geofencing.ui.sector.SectorViewModel
@@ -81,7 +82,9 @@ fun HomeScreen(
                 content = content,
                 camera = camera,
                 modifier = Modifier.fillMaxSize(),
-                gesturesEnabled = gestures
+                gesturesEnabled = gestures,
+                // 확대(제스처) 히트맵은 100%(카트 지도와 동일 기준)까지만. 배너/팝업은 제스처 없어 무관.
+                maxZoom = if (gestures) MapZoom100Percent else null
             )
         }
     }
