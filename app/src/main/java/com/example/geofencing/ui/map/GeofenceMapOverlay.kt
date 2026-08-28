@@ -95,8 +95,9 @@ fun GeofenceMapOverlay(
         //    graphicsLayer로 텍스트 크기만큼 이동(가로 중앙 = -width/2, 하단이 마커 위 6dp = -height).
         content.carts.forEach { cart ->
             val markerRadiusPx = projector.geoRadiusToPx(cart.position, MarkerRadiusMeters)
-            // 마커 지름(=반경×2)이 임계 크기 이상일 때만 라벨(Figma: 60%부터).
-            if (markerRadiusPx * 2f >= minLabelMarkerDiameterPx) {
+            // 마커 바깥 지름(테두리 포함) = 반경×(2 + 테두리비율). 테두리는 중앙 정렬이라 반경 밖으로 절반 나감.
+            // Figma의 마커 크기는 border 포함값이므로 이 바깥 지름으로 비교(60%부터 라벨).
+            if (markerRadiusPx * (2f + MarkerBorderRatio) >= minLabelMarkerDiameterPx) {
                 val pos = projector.project(cart.position)
                 Text(
                     text = cart.id,
