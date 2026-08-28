@@ -38,8 +38,11 @@ import com.google.android.gms.maps.GoogleMap as GmsGoogleMap
 private const val FollowAnimMillis = 700
 private const val FitPaddingPx = 48
 private const val DefaultFitZoom = 15f
-// 지도 확대 "100%" 기준 줌(= 카트 추적 기본 줌 CartFollowZoom). 히트맵 확대는 이 값까지만 허용.
+// 지도 확대 "100%" 기준 줌(= 카트 추적 기본 줌 CartFollowZoom).
 internal const val MapZoom100Percent = 17f
+// 히트맵(FitGeofence) 확대 최대 줌 = 디자인 "100%". 마커는 60%에서 캡되므로 이 값은 지도 디테일/이동 범위만 결정.
+// 60% 사이즈에 도달하되 과확대되지 않게 카트 100%(17)보다 조금 높게. TODO: 실기기에서 디자인 100%에 맞춰 튜닝.
+internal const val HeatmapMaxZoom = 19f
 // 카트 재중심 판단 오차(위경도 합). 이보다 벗어나면 카트로 다시 중심 이동.
 private const val CenterEpsilon = 1e-6
 

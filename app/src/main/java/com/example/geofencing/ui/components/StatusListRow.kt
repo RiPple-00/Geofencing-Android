@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -41,9 +42,10 @@ private val ArrowIconSize = 16.dp
 // 아이콘과 글씨 사이 gap (실측값).
 private val StatusIconTextGap = 6.dp
 
-// 구분선 상/하 패딩. 아이템과 구분선 사이 별도 gap은 없고 이 패딩이 곧 간격
-private val DividerPaddingTop = 8.dp
-private val DividerPaddingBottom = 12.dp
+// 구분선 상/하 패딩. 행은 48dp min-height에 텍스트 중앙 정렬이라, 텍스트 여백(≈16dp)에 이 패딩이 더해져
+// 간격이 된다. cart → 아래 라인 = ≈16 + 2 ≈ 18dp, 라인 → 아래 cart = ≈16 + 6 ≈ 22dp.
+private val DividerPaddingTop = 2.dp
+private val DividerPaddingBottom = 6.dp
 
 sealed interface RowStatus {
     // 시계 아이콘 + 빨강 시간 (예: "1h 19m 23s", "8m 45s")
@@ -75,6 +77,9 @@ fun StatusListRow(
     showDivider: Boolean = true
 ) {
     val colors = MaterialTheme.extendedColors
+    // data1/data2 폭은 360dp 기준값이라, 화면폭 대비 배율로 스케일해 반응형으로 만든다(360에선 1.0).
+    // 시간(status)은 weight로 남는 폭을 흡수하고, arrow·패딩은 고정.
+    val widthScale = LocalConfiguration.current.screenWidthDp / 360f
     Column(modifier = modifier.fillMaxWidth()) {
         // 행 높이는 고정하지 않고 가장 큰 자식(arrow=아이콘 16 + 상하 8·2 = 32dp)에 가변
         Row(
@@ -87,7 +92,7 @@ fun StatusListRow(
             Text(
                 text = data1,
                 modifier = Modifier
-                    .width(data1Width)
+                    .width(data1Width * widthScale)
                     .padding(horizontal = ColumnHorizontalPadding),
                 style = Label14,
                 color = colors.textSecondary,
@@ -99,7 +104,7 @@ fun StatusListRow(
             Text(
                 text = data2.orEmpty(),
                 modifier = Modifier
-                    .width(data2Width)
+                    .width(data2Width * widthScale)
                     .padding(horizontal = ColumnHorizontalPadding),
                 style = Body14,
                 color = data2Color,

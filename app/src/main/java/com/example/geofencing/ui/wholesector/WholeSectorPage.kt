@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -74,6 +75,8 @@ data class WholeSectorUiState(
 
 private val PageTopGap = 26.dp
 private val PageBottomGap = 92.dp
+// Sector List: 제목 → 첫 카드 간격 24.5 = 이 Spacer(22.5) + 아이템 컬럼 Space05(2). (StatusListRow 섹션과 달리 중앙정렬 없음)
+private val SectorListTitleToItemsGap = 22.5.dp
 private val TotalToStatGap = 24.dp
 private val SectorCardGap = 24.dp
 // 섹터 카드: 지도 배경 전체 높이 + 콘텐츠(제목/통계) 내부 패딩(상단 26 / 하좌우 14).
@@ -132,7 +135,13 @@ fun WholeSectorPage(
 
         SectionDivider(top = 64.dp, bottom = 46.dp)
 
-        ListSection(title = "Sector List", count = state.sectors.size, unit = "Sectors") {
+        // Sector List는 아이템이 플러시 카드(중앙정렬 없음) → 제목→카드 간격 = 이 값 + Space05(2) = 24.5.
+        ListSection(
+            title = "Sector List",
+            count = state.sectors.size,
+            unit = "Sectors",
+            titleToItemsGap = SectorListTitleToItemsGap
+        ) {
             state.sectors.forEachIndexed { i, s ->
                 SectorMapCard(sector = s, onClick = { onSectorClick(s) })
                 if (i < state.sectors.lastIndex) {
@@ -144,16 +153,19 @@ fun WholeSectorPage(
 
         // 섹터 썸네일을 미리 생성(오프스크린). 스크롤 밖 형제라 레이아웃/스크롤엔 영향 없음.
         // 캡처 크기 = 카드 안쪽 지도 폭(화면폭 - 페이지 여백 - 카드 패딩) × 썸네일 높이.
-        val containerWidthDp = with(LocalDensity.current) {
-            LocalWindowInfo.current.containerSize.width.toDp()
+        // 프리뷰(inspection)에선 스냅샷 write가 금지("Write access not allowed during rendering")되므로 건너뛴다.
+        if (!LocalInspectionMode.current) {
+            val containerWidthDp = with(LocalDensity.current) {
+                LocalWindowInfo.current.containerSize.width.toDp()
+            }
+            SectorSnapshotPrefetcher(
+                requests = state.sectors.map { SectorSnapshotRequest(it.id, it.geofence) },
+                width = containerWidthDp - PageHorizontalMargin * 2,
+                height = SectorCardHeight,
+                fitWidth = GeofenceFitMaxWidth,
+                fitHeight = GeofenceFitMaxHeight
+            )
         }
-        SectorSnapshotPrefetcher(
-            requests = state.sectors.map { SectorSnapshotRequest(it.id, it.geofence) },
-            width = containerWidthDp - PageHorizontalMargin * 2,
-            height = SectorCardHeight,
-            fitWidth = GeofenceFitMaxWidth,
-            fitHeight = GeofenceFitMaxHeight
-        )
     }
 }
 
@@ -209,12 +221,14 @@ private fun SectorMapCard(
             .borderBox()
             .noRippleClickable(onClick)
     ) {
-        // 배경: 지도 스냅샷을 카드(borderBox 안쪽) 전체에 꽉 채움.
-        FixedGeofenceMap(
-            content = GeofenceMapContent(geofence = sector.geofence),
-            sectorId = sector.id,
-            modifier = Modifier.matchParentSize()
-        )
+        // 배경: 지도 스냅샷을 카드(borderBox 안쪽) 전체에 꽉 채움. 프리뷰에선 스냅샷 접근이 막혀 생략.
+        if (!LocalInspectionMode.current) {
+            FixedGeofenceMap(
+                content = GeofenceMapContent(geofence = sector.geofence),
+                sectorId = sector.id,
+                modifier = Modifier.matchParentSize()
+            )
+        }
         // 지도 위 콘텐츠: 제목(상단) + 통계(하단). BorderBox 내부 패딩 상단 26 / 하좌우 14.
         Column(
             modifier = Modifier

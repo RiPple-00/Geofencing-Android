@@ -80,13 +80,24 @@ fun GeofenceMapOverlay(
             }
 
             // 3) 카트: 섹터에 속한 카트 수만큼(1:n). 각 카트 = 하이라이트(아래) + 마커(위), 둘 다 카트 위치 중심.
-            content.carts.forEach { cart ->
+            // 마커/glow 크기를 [배너 최소, 60% 최대]로 클램프 → 축소해도 안 작아지고, 확대해도 60% 사이즈가 최대.
+            // 마커: 외곽 지름 = 반경×(2+테두리비율). glow: 지름 = 반경×2. glow 최대는 마커와 같은 줌에서 멈추게 비례(48m/8m).
+            val minMarkerRadiusPx = (CartMarkerMinDiameter / (2f + MarkerBorderRatio)).toPx()
+            val maxMarkerRadiusPx = (CartMarkerMaxDiameter / (2f + MarkerBorderRatio)).toPx()
+            val minGlowRadiusPx = (CartGlowMinDiameter / 2f).toPx()
+            val maxGlowRadiusPx = maxMarkerRadiusPx * (GlowRadiusMeters / MarkerRadiusMeters).toFloat()
+            // 선택된 카트는 맨 나중에 그려 glow·마커가 다른 마커 위(최상위)에 오게 한다. 선택 안 된 카트는 disabled.
+            val selectedId = content.selectedCartId
+            content.carts.sortedBy { it.id == selectedId }.forEach { cart ->
                 drawCart(
                     center = projector.project(cart.position),
-                    markerRadius = projector.geoRadiusToPx(cart.position, MarkerRadiusMeters),
-                    glowRadius = projector.geoRadiusToPx(cart.position, GlowRadiusMeters),
+                    markerRadius = projector.geoRadiusToPx(cart.position, MarkerRadiusMeters)
+                        .coerceIn(minMarkerRadiusPx, maxMarkerRadiusPx),
+                    glowRadius = projector.geoRadiusToPx(cart.position, GlowRadiusMeters)
+                        .coerceIn(minGlowRadiusPx, maxGlowRadiusPx),
                     kind = cart.kind,
-                    highlighted = content.isHighlighted(cart)
+                    highlighted = content.isHighlighted(cart),
+                    disabled = selectedId != null && cart.id != selectedId
                 )
             }
         }
@@ -106,9 +117,12 @@ fun GeofenceMapOverlay(
                     maxLines = 1,
                     modifier = Modifier
                         .offset {
+                            // 라벨이 뜨는 시점엔 마커가 60% 캡 크기라, 그려지는(캡된) 반경 위에 정확히 올린다.
+                            val cappedRadiusPx =
+                                markerRadiusPx.coerceAtMost((CartMarkerMaxDiameter / (2f + MarkerBorderRatio)).toPx())
                             IntOffset(
                                 pos.x.roundToInt(),
-                                (pos.y - markerRadiusPx - CartLabelGap.toPx()).roundToInt()
+                                (pos.y - cappedRadiusPx - CartLabelGap.toPx()).roundToInt()
                             )
                         }
                         .graphicsLayer {
@@ -124,6 +138,12 @@ fun GeofenceMapOverlay(
 // --- 스타일 상수(TODO 측정: 실제 반경/두께는 디자인 확정 시 교체) ---
 private const val GlowRadiusMeters = 48.0
 private const val MarkerRadiusMeters = 8.0
+// 마커 외곽 지름(테두리 포함) 하한/상한. 배너(축소)에선 하한, 60% 확대에선 상한으로 멈춘다.
+// Figma: 배너 7.793px, 60% 30.2px.
+private val CartMarkerMinDiameter = 7.793.dp
+private val CartMarkerMaxDiameter = 30.2.dp
+// 위반(붉은) 마커 뒤 glow 최소 지름. 배너에서의 하한. Figma: 31.533px.
+private val CartGlowMinDiameter = 31.533.dp
 // 카트 이름 라벨과 마커 사이 간격(디자인 확정값).
 private val CartLabelGap = 6.dp
 // 카트 이름 라벨을 표시하기 시작하는 마커 지름(화면 px 환산 dp).
@@ -146,23 +166,28 @@ private fun glowColor(kind: StatusKind): Color = when (kind) {
 
 // 카트 마커 색(상태별 테두리 + 채움). 지도는 항상 다크라 Dark* 토큰 직접 사용.
 private data class MarkerColors(val border: Color, val fill: Color)
-private fun markerColors(kind: StatusKind): MarkerColors = when (kind) {
-    StatusKind.Compliance -> MarkerColors(border = DarkTextPrimary, fill = DarkBrandTertiary)
-    StatusKind.Violation -> MarkerColors(border = DarkTextPrimary, fill = DarkCriticalTertiary)
-    StatusKind.Disconnect -> MarkerColors(border = DarkBorderStrong, fill = DarkTextDisabled)
+// disabled(카트 페이지에서 선택 안 된 카트)면 테두리를 text/disabled로 흐리게(fill은 상태 색 유지).
+private fun markerColors(kind: StatusKind, disabled: Boolean): MarkerColors {
+    val base = when (kind) {
+        StatusKind.Compliance -> MarkerColors(border = DarkTextPrimary, fill = DarkBrandTertiary)
+        StatusKind.Violation -> MarkerColors(border = DarkTextPrimary, fill = DarkCriticalTertiary)
+        StatusKind.Disconnect -> MarkerColors(border = DarkBorderStrong, fill = DarkTextDisabled)
+    }
+    return if (disabled) base.copy(border = DarkTextDisabled) else base
 }
 
 // 지도 위 카트 하나: highlighted면 하이라이트(glow)를 카트 아래에 먼저, 그 위에 마커(채움+테두리).
-// glow·마커 모두 center(카트 위치) 기준. highlighted 판정은 호출부(GeofenceMapContent.isHighlighted).
+// glow·마커 모두 center(카트 위치) 기준. disabled면 테두리만 흐리게(선택 안 된 카트).
 private fun DrawScope.drawCart(
     center: Offset,
     markerRadius: Float,
     glowRadius: Float,
     kind: StatusKind,
-    highlighted: Boolean
+    highlighted: Boolean,
+    disabled: Boolean
 ) {
     if (highlighted) drawGlow(center, glowRadius, glowColor(kind))
-    val mc = markerColors(kind)
+    val mc = markerColors(kind, disabled)
     drawCircle(mc.fill, radius = markerRadius, center = center)
     drawCircle(
         mc.border,

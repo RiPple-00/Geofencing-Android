@@ -135,7 +135,11 @@ class SupabaseDashboardRepository @Inject constructor(
         var outsideIdx = 0
         val now = Instant.now()
         return carts.map { cart ->
-            val status = if (cart.geofenceStatus == "violating") StatusKind.Violation else StatusKind.Compliance
+            val status = when (cart.geofenceStatus) {
+                "violating" -> StatusKind.Violation
+                "disconnected" -> StatusKind.Disconnect
+                else -> StatusKind.Compliance
+            }
             val position = if (cart.lat != null && cart.lng != null) {
                 LatLng(cart.lat, cart.lng)
             } else {

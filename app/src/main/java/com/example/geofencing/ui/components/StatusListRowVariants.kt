@@ -12,11 +12,12 @@ import com.example.geofencing.ui.theme.extendedColors
 //   - (sector, cart, ...) : Whole Sector 페이지처럼 섹터+카트를 함께 보여줄 때
 //   - (cart, ...)         : 섹터가 이미 정해진 화면에서 카트만 보여줄 때(data2=null)
 
-// 폭 확정값: Violation 100/78, Disconnect 100/88, All Cart List 85/90.
-private val ViolationData1Width = 100.dp
-private val ViolationData2Width = 78.dp
-private val DisconnectData1Width = 100.dp
-private val DisconnectData2Width = 88.dp
+// 폭(360 기준 고정, 시간 칸은 weight로 stretch → 반응형).
+// Violation = cart 78 / sector 100, Disconnect = cart 88 / sector 105, All Cart List = 85/90.
+private val ViolationData1Width = 78.dp    // cart
+private val ViolationData2Width = 100.dp   // sector
+private val DisconnectData1Width = 88.dp   // cart
+private val DisconnectData2Width = 105.dp  // sector
 private val CartStateData1Width = 85.dp
 private val CartStateData2Width = 90.dp
 
