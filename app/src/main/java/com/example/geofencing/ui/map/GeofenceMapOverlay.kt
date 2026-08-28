@@ -56,8 +56,8 @@ fun GeofenceMapOverlay(
     boundaryWidth: Dp = 1.dp
 ) {
     val labelColor = MaterialTheme.extendedColors.textSecondary
-    // 라벨은 마커가 이 크기(px) 이상으로 커졌을 때만(=충분히 확대) 표시 → 축소/배너에선 숨겨 혼잡 방지.
-    val minLabelMarkerRadiusPx = with(LocalDensity.current) { CartLabelMinMarkerRadius.toPx() }
+    // 라벨은 마커 지름이 이 크기 이상일 때만(=60% 이상 확대) 표시 → 축소/배너에선 숨겨 혼잡 방지.
+    val minLabelMarkerDiameterPx = with(LocalDensity.current) { CartLabelMinMarkerSize.toPx() }
     // clipToBounds: Canvas는 기본적으로 영역 밖으로도 그려서(경계선/글로우가 지도 밖으로 삐져나옴),
     // 타이트 줌(FollowCart)에서 geofence가 뷰를 넘칠 때 잘리도록 자기 영역으로 클립.
     Box(modifier = modifier.clipToBounds()) {
@@ -95,7 +95,8 @@ fun GeofenceMapOverlay(
         //    graphicsLayer로 텍스트 크기만큼 이동(가로 중앙 = -width/2, 하단이 마커 위 6dp = -height).
         content.carts.forEach { cart ->
             val markerRadiusPx = projector.geoRadiusToPx(cart.position, MarkerRadiusMeters)
-            if (markerRadiusPx >= minLabelMarkerRadiusPx) {
+            // 마커 지름(=반경×2)이 임계 크기 이상일 때만 라벨(Figma: 60%부터).
+            if (markerRadiusPx * 2f >= minLabelMarkerDiameterPx) {
                 val pos = projector.project(cart.position)
                 Text(
                     text = cart.id,
@@ -124,8 +125,9 @@ private const val GlowRadiusMeters = 48.0
 private const val MarkerRadiusMeters = 8.0
 // 카트 이름 라벨과 마커 사이 간격(디자인 확정값).
 private val CartLabelGap = 6.dp
-// 마커 반경(화면 px 환산)이 이 dp 이상일 때만 라벨 표시(=충분히 확대). TODO(측정): 실기기 튜닝값.
-private val CartLabelMinMarkerRadius = 12.dp
+// 카트 이름 라벨을 표시하기 시작하는 마커 지름(화면 px 환산 dp).
+// Figma: 줌 20%/40%/60% → 마커 30.2px, 라벨은 60%(=30.2px)부터 표시.
+private val CartLabelMinMarkerSize = 30.2.dp
 // 마커 테두리/반경 비율: 스펙 3종 공통(compliance 2.58/22.725, violation·disconnect 1.125/9.9 ≈ 0.1135).
 private const val MarkerBorderRatio = 0.1135f
 // glow의 stroke/blur를 반경 비율로 두어 줌 스케일 시 함께 커지게 함(drawable 비율에서 유도).
@@ -206,9 +208,9 @@ private fun Path.polyPath(points: List<Offset>) {
 @Preview(showBackground = true, backgroundColor = 0xFF0F0F0F, widthDp = 320, heightDp = 320)
 @Composable
 private fun GeofenceMapOverlayPreview() {
-    // 라벨은 마커 크기(px) 기준이라, 마커가 임계값을 넘도록 좁은 영역(~180m)을 캔버스에 매핑한다.
+    // 라벨은 마커 지름(px) 기준이라, 마커가 임계값(30.2dp)을 넘도록 좁은 영역(~144m)을 캔버스에 매핑한다.
     // projector를 실제 캔버스 px(=320dp×density)에 맞춰 density와 무관하게 라벨이 보이게 한다.
-    val minLat = 37.5682; val maxLat = 37.5698 // ~180m
+    val minLat = 37.5683; val maxLat = 37.5696 // ~144m → 마커 지름 > 30.2px(라벨 표시)
     val minLng = 126.9789; val maxLng = 126.9811
     val density = LocalDensity.current.density
     val w = 320f * density; val h = 320f * density
