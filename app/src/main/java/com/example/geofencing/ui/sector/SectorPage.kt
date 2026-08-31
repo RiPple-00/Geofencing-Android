@@ -280,14 +280,14 @@ private fun Pagination(
     }
 }
 
-// 페이지네이션 아이템: 숫자 또는 생략(...).
-private sealed interface PageItem {
+// 페이지네이션 아이템: 숫자 또는 생략(...). (internal: 단위 테스트에서 접근)
+internal sealed interface PageItem {
     data class Number(val page: Int) : PageItem
     data object Ellipsis : PageItem
 }
 
-// totalPages<=5면 전부, 초과면 [1 … (현재±1) … 마지막] 형태로 축약.
-private fun paginationItems(current: Int, total: Int): List<PageItem> {
+// totalPages<=5면 전부, 초과면 [1 … (현재±1) … 마지막] 형태로 축약. (internal: 단위 테스트 대상)
+internal fun paginationItems(current: Int, total: Int): List<PageItem> {
     if (total <= 5) return (1..total).map { PageItem.Number(it) }
     val items = mutableListOf<PageItem>()
     items += PageItem.Number(1)

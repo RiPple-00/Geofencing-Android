@@ -80,9 +80,7 @@ class SupabaseDashboardRepository @Inject constructor(
             .mapValues { (_, evs) -> evs.maxByOrNull { parseInstant(it.occurredAt) ?: Instant.MIN }!! }
 
         return sectors.map { sector ->
-            val geofence = sector.geofence.coordinates.firstOrNull().orEmpty()
-                .map { LatLng(it[1], it[0]) }
-                .let { ring -> if (ring.size > 1 && ring.first() == ring.last()) ring.dropLast(1) else ring }
+            val geofence = geoJsonRingToLatLng(sector.geofence.coordinates)
             val sectorCarts = cartsBySector[sector.id].orEmpty()
             val violationPoints = eventsBySector[sector.id].orEmpty()
                 .map { LatLng(it.location.coordinates[1], it.location.coordinates[0]) }
@@ -153,20 +151,29 @@ class SupabaseDashboardRepository @Inject constructor(
         }
     }
 
-    private fun formatDuration(elapsed: Duration): String {
-        val seconds = elapsed.seconds.coerceAtLeast(0)
-        val hours = seconds / 3600
-        val minutes = (seconds % 3600) / 60
-        val secs = seconds % 60
-        return if (hours > 0) "%dh %02dm".format(hours, minutes) else "%dm %02ds".format(minutes, secs)
-    }
-
-    private fun parseInstant(value: String): Instant? = runCatching {
-        OffsetDateTime.parse(value).toInstant()
-    }.recoverCatching { Instant.parse(value) }.getOrNull()
-
     private companion object {
         val timeFormatter: DateTimeFormatter =
             DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm:ss").withZone(ZoneId.systemDefault())
     }
+}
+
+// Converts the GeoJSON polygon outer ring from [lng, lat] pairs into LatLng(lat, lng).
+// A closing point that repeats the first vertex is dropped.
+internal fun geoJsonRingToLatLng(coordinates: List<List<List<Double>>>): List<LatLng> {
+    val ring = coordinates.firstOrNull().orEmpty().map { LatLng(it[1], it[0]) }
+    return if (ring.size > 1 && ring.first() == ring.last()) ring.dropLast(1) else ring
+}
+
+// Parses offset timestamps first, then UTC instants; invalid values become null.
+internal fun parseInstant(value: String): Instant? = runCatching {
+    OffsetDateTime.parse(value).toInstant()
+}.recoverCatching { Instant.parse(value) }.getOrNull()
+
+// Formats violation elapsed time. Negative values are clamped to zero for clock skew.
+internal fun formatDuration(elapsed: Duration): String {
+    val seconds = elapsed.seconds.coerceAtLeast(0)
+    val hours = seconds / 3600
+    val minutes = (seconds % 3600) / 60
+    val secs = seconds % 60
+    return if (hours > 0) "%dh %02dm".format(hours, minutes) else "%dm %02ds".format(minutes, secs)
 }
