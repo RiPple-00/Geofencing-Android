@@ -61,8 +61,8 @@ object SectorSnapshotCache {
             val parts = meta.readText().split(",")
             if (parts.size < 6) return@withContext null
             val bmp = BitmapFactory.decodeFile(png.absolutePath) ?: return@withContext null
-            SectorSnapshot(
-                bmp.asImageBitmap(),
+            // 손상/부분기록된 meta는 파싱 예외로 크래시하지 않고 무효 처리(fail-closed) → 캐시 재생성.
+            val projection = runCatching {
                 SnapshotProjection(
                     south = parts[0].toDouble(),
                     west = parts[1].toDouble(),
@@ -71,7 +71,8 @@ object SectorSnapshotCache {
                     widthPx = parts[4].toInt(),
                     heightPx = parts[5].toInt()
                 )
-            )
+            }.getOrNull() ?: return@withContext null
+            SectorSnapshot(bmp.asImageBitmap(), projection)
         } ?: return
         memory[key] = snap
     }
