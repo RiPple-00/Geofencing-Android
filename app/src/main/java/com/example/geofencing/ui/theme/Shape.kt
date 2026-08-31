@@ -4,7 +4,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes
 import androidx.compose.ui.unit.dp
 
-// TODO: 나머지 코너 반경 값이 확정되면 교체하세요. small(8dp)은 모니터링 위젯 카드에서 실측 확인됨.
 val Shapes = Shapes(
     extraSmall = RoundedCornerShape(4.dp),
     small = RoundedCornerShape(8.dp),

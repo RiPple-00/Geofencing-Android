@@ -3,7 +3,7 @@ package com.example.geofencing.ui.cart
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.geofencing.ui.common.LoadState
-import com.example.geofencing.ui.mock.DashboardRepository
+import com.example.geofencing.ui.dashboard.DashboardRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,9 +37,15 @@ class CartViewModel @Inject constructor(
                 when (state) {
                     LoadState.Loading -> LoadState.Loading
                     is LoadState.Error -> state
-                    is LoadState.Success ->
-                        state.data?.let { LoadState.Success(cartStateFrom(it, t.second)) }
-                            ?: LoadState.Error("Sector not found: ${t.first}")
+                    is LoadState.Success -> {
+                        val sector = state.data
+                        val ui = sector?.let { cartUiStateFrom(it, t.second) }
+                        when {
+                            sector == null -> LoadState.Error("Sector not found: ${t.first}")
+                            ui == null -> LoadState.Error("Cart not found: ${t.second}")
+                            else -> LoadState.Success(ui)
+                        }
+                    }
                 }
             }
         }
