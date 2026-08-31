@@ -34,8 +34,8 @@ class DashboardUiMapperTest {
     fun `cart mapper exposes violation details only for violating cart`() {
         val sector = sampleSector()
 
-        val violation = cartUiStateFrom(sector, "Cart 1")
-        val compliance = cartUiStateFrom(sector, "Cart 2")
+        val violation = cartUiStateFrom(sector, "Cart 1")!!
+        val compliance = cartUiStateFrom(sector, "Cart 2")!!
 
         assertEquals("Cart 1", violation.cartName)
         assertEquals("3m 10s", violation.violation?.duration)

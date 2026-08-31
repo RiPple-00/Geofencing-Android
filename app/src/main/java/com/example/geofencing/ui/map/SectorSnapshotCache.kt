@@ -9,14 +9,24 @@ import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.security.MessageDigest
 
-private const val SnapshotCacheVersion = "v8"
+// v9: geofence 캐시 키를 hashCode()에서 좌표 기반 SHA-256 다이제스트로 교체(구 v8 항목은 prune됨).
+private const val SnapshotCacheVersion = "v9"
 
 object SectorSnapshotCache {
     private val memory = mutableStateMapOf<String, SectorSnapshot>()
 
     fun keyOf(sectorId: Int, geofence: List<LatLng>, widthDp: Int, heightDp: Int): String =
-        "sector_${sectorId}_${geofence.hashCode()}_${widthDp}x${heightDp}_$SnapshotCacheVersion"
+        "sector_${sectorId}_${geofenceDigest(geofence)}_${widthDp}x${heightDp}_$SnapshotCacheVersion"
+
+    // 좌표 기반 안정적 다이제스트(SHA-256 앞 8바이트 = 16 hex). hashCode()는 충돌 시 서로 다른
+    // geofence가 같은 키가 되어 잘못된 스냅샷을 로드할 수 있어, 충돌 저항성 있는 digest를 쓴다.
+    private fun geofenceDigest(geofence: List<LatLng>): String {
+        val raw = geofence.joinToString(";") { "${it.latitude},${it.longitude}" }
+        val digest = MessageDigest.getInstance("SHA-256").digest(raw.toByteArray())
+        return digest.take(8).joinToString("") { "%02x".format(it) }
+    }
 
     private fun dir(context: Context): File =
         File(context.cacheDir, "sector_snapshots").apply { mkdirs() }

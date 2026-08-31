@@ -37,9 +37,15 @@ class CartViewModel @Inject constructor(
                 when (state) {
                     LoadState.Loading -> LoadState.Loading
                     is LoadState.Error -> state
-                    is LoadState.Success ->
-                        state.data?.let { LoadState.Success(cartUiStateFrom(it, t.second)) }
-                            ?: LoadState.Error("Sector not found: ${t.first}")
+                    is LoadState.Success -> {
+                        val sector = state.data
+                        val ui = sector?.let { cartUiStateFrom(it, t.second) }
+                        when {
+                            sector == null -> LoadState.Error("Sector not found: ${t.first}")
+                            ui == null -> LoadState.Error("Cart not found: ${t.second}")
+                            else -> LoadState.Success(ui)
+                        }
+                    }
                 }
             }
         }
