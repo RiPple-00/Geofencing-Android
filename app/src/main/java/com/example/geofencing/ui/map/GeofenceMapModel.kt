@@ -21,9 +21,11 @@ data class GeofenceMapContent(
     val selectedCartId: String? = null
 )
 
-// highlight 규칙: Violation은 항상, Compliance/Disconnect는 선택됐을 때만.
+// highlight(glow) 규칙: 선택이 있는 화면(카트 페이지)에선 선택된 카트만 glow(나머지는 disabled).
+// 선택이 없는 화면(섹터/히트맵)에선 위반 카트가 glow.
 fun GeofenceMapContent.isHighlighted(cart: CartMarker): Boolean =
-    cart.kind == StatusKind.Violation || cart.id == selectedCartId
+    if (selectedCartId != null) cart.id == selectedCartId
+    else cart.kind == StatusKind.Violation
 
 // 카메라(어디를 볼지). content와 분리.
 sealed interface MapCamera {

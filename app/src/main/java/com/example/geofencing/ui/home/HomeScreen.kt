@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -19,7 +20,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.geofencing.ui.analytics.AnalyticsEvent
 import com.example.geofencing.ui.analytics.LocalAnalytics
@@ -28,10 +31,13 @@ import com.example.geofencing.ui.cart.CartViewModel
 import com.example.geofencing.ui.common.LoadState
 import com.example.geofencing.ui.components.AppTopBar
 import com.example.geofencing.ui.components.LoadStateContent
+import com.example.geofencing.ui.components.MapReduceButton
 import com.example.geofencing.ui.components.SectorTabRow
 import com.example.geofencing.ui.map.GeofenceMapContent
+import com.example.geofencing.ui.map.HeatmapMinZoom
 import com.example.geofencing.ui.map.LiveGeofenceMap
 import com.example.geofencing.ui.map.MapCamera
+import com.example.geofencing.ui.map.HeatmapMaxZoom
 import com.example.geofencing.ui.map.ViolationHeatmapOverlay
 import com.example.geofencing.ui.sector.SectorPage
 import com.example.geofencing.ui.sector.SectorViewModel
@@ -42,8 +48,8 @@ import com.example.geofencing.ui.wholesector.WholeSectorUiState
 private const val APP_TITLE = "Geofence"
 // 배너 라이브 지도에서 geofence 가장자리 여백(dp) — FitGeofence padding.
 private const val SectorMapGeofenceMarginDp = 45
-// 히트맵 오버레이 지도 추가 확대 배율.
-private const val HeatmapZoomFactor = 1.1f
+// 히트맵 지도에서 geofence 가장자리 최소 여백(dp) — FitGeofence padding. 배너(45)보다 좁아 더 크게 보임.
+private const val HeatmapGeofenceMarginDp = 15
 
 // 탭 셸: AppTopBar + SectorTabRow(크롬) + body. 크롬은 항상 유지되고, body는:
 // - 드릴다운으로 열린 카트가 있으면 CartPage (뒤로가기로 닫음)
@@ -69,13 +75,24 @@ fun HomeScreen(
     var showHeatmap by rememberSaveable { mutableStateOf(false) }
     var mapInBanner by remember { mutableStateOf(!showHeatmap) }
     var closingHeatmap by remember { mutableStateOf(false) }
+    // 확대(⤢) 버튼 → body를 꽉 채우는 줌 지도(cart식). 라벨 탭 팝업(showHeatmap)과 별개 상태.
+    var mapExpanded by rememberSaveable { mutableStateOf(false) }
     val movableMap = remember {
-        movableContentOf<GeofenceMapContent, MapCamera> { content, camera ->
-            LiveGeofenceMap(content = content, camera = camera, modifier = Modifier.fillMaxSize())
+        movableContentOf<GeofenceMapContent, MapCamera, Boolean> { content, camera, gestures ->
+            LiveGeofenceMap(
+                content = content,
+                camera = camera,
+                modifier = Modifier.fillMaxSize(),
+                gesturesEnabled = gestures,
+                // 확대 지도만 15~19 줌 범위로 제한. 배너/팝업은 제스처가 없어 무관.
+                minZoom = if (gestures) HeatmapMinZoom else null,
+                maxZoom = if (gestures) HeatmapMaxZoom else null
+            )
         }
     }
 
     BackHandler(enabled = openCartTarget != null) { openCartTarget = null }
+    BackHandler(enabled = mapExpanded) { mapExpanded = false }
 
     val sectorViewModel: SectorViewModel = hiltViewModel()
     val cartViewModel: CartViewModel = hiltViewModel()
@@ -112,12 +129,13 @@ fun HomeScreen(
         showHeatmap = false
         mapInBanner = true
         closingHeatmap = false
+        mapExpanded = false
     }
     // 현재 섹터의 지도 콘텐츠(배너/히트맵 공용). Success일 때만 존재.
     val sectorMapContent = (sectorState as? LoadState.Success)?.data
         ?.let { GeofenceMapContent(geofence = it.geofence, carts = it.carts) }
     val bannerCamera = MapCamera.FitGeofence(paddingDp = SectorMapGeofenceMarginDp)
-    val heatmapCamera = MapCamera.FitGeofence(zoomFactor = HeatmapZoomFactor)
+    val heatmapCamera = MapCamera.FitGeofence(paddingDp = HeatmapGeofenceMarginDp)
 
     // 드릴다운 진입 지점(from)까지 기록하는 공통 경로.
     val openCart: (String, String, String) -> Unit = { sector, cart, from ->
@@ -213,16 +231,18 @@ fun HomeScreen(
                     ) { sectorUi ->
                         SectorPage(
                             state = sectorUi,
-                            // 지도 배너는 공유 지도를 여기서 주입(히트맵 오버레이와 같은 인스턴스).
+                            // 지도 배너는 공유 지도를 여기서 주입(팝업·body 줌 지도와 같은 인스턴스). 배너는 제스처 off.
                             bannerMap = {
-                                if (mapInBanner && sectorMapContent != null) {
-                                    movableMap(sectorMapContent, bannerCamera)
+                                if (mapInBanner && !mapExpanded && sectorMapContent != null) {
+                                    movableMap(sectorMapContent, bannerCamera, false)
                                 }
                             },
+                            // 라벨 탭 → 팝업, 확대(⤢) 버튼 → body 꽉 채우는 줌 지도.
                             onHeatmapClick = {
                                 mapInBanner = false
                                 showHeatmap = true
                             },
+                            onExpandMap = { mapExpanded = true },
                             // 카트 클릭(violation/disconnect/all cart) → 현재 섹터의 해당 카트로 드릴다운
                             onViolationClick = { openCart(sectorName, it.cart, "sector_violation") },
                             onDisconnectClick = { openCart(sectorName, it.cart, "sector_disconnect") },
@@ -231,15 +251,33 @@ fun HomeScreen(
                     }
                 }
             }
+
+            // 확대(⤢) 버튼 → body(탭바 아래)를 꽉 채우는 줌 지도(cart식). 핀치 줌/이동, 축소(⌟)/뒤로가기로 닫기.
+            if (mapExpanded && sectorMapContent != null) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    movableMap(sectorMapContent, heatmapCamera, true)
+                    MapReduceButton(
+                        onClick = { mapExpanded = false },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(12.dp)
+                    )
+                }
+            }
         }
         }
 
-        // Violation Heatmap — 앱 최상단 레이어(크롬 포함 전체를 덮는 스크림). SectorPage 밖(여기)에서
-        // 그려야 탭바 위를 덮고, 상단 패딩이 앱 최상단 기준이 된다.
+        // "Violation Heatmap" 라벨 탭 → 팝업(정적, 스크림). 앱 최상단 레이어(크롬 위)를 덮는다.
+        // 지도는 배너와 공유해 열 때 검은 플래시가 없고, 닫을 때 배너 재-fit을 스크림 뒤에 숨긴다.
         if (showHeatmap && sectorMapContent != null) {
             ViolationHeatmapOverlay(
                 onDismiss = { closingHeatmap = true },
-                map = { if (!mapInBanner) movableMap(sectorMapContent, heatmapCamera) }
+                // 팝업은 geofence 경계를 자세히 보기 위한 화면 → 카트 마커는 숨긴다(carts 제거).
+                map = {
+                    if (!mapInBanner) {
+                        movableMap(sectorMapContent.copy(carts = emptyList()), heatmapCamera, false)
+                    }
+                }
             )
         }
     }

@@ -40,8 +40,21 @@ val DarkExtendedColors = ExtendedColors(
     background = DarkBackground
 )
 
-// TODO: 라이트 모드 디자인 값이 확정되면 실제 값으로 교체. 지금은 다크 값을 임시로 재사용.
-val LightExtendedColors = DarkExtendedColors
+val LightExtendedColors = ExtendedColors(
+    fillPrimary = LightFillPrimary,
+    fillSecondary = LightFillSecondary,
+    fillLowest = LightFillLowest,
+    fillHighest = LightFillHighest,
+    textPrimary = LightTextPrimary,
+    textSecondary = LightTextSecondary,
+    textDisabled = LightTextDisabled,
+    criticalPrimary = LightCriticalPrimary,
+    brandPrimary = LightBrandPrimary,
+    borderDefault = LightBorderDefault,
+    borderStrong = LightBorderStrong,
+    borderFocus = LightBorderFocus,
+    background = LightBackground
+)
 
 val LocalExtendedColors = staticCompositionLocalOf { DarkExtendedColors }
 

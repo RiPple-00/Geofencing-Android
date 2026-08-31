@@ -37,7 +37,16 @@ import com.google.android.gms.maps.GoogleMap as GmsGoogleMap
 // 라이브 projection으로 겹친다. 카메라가 움직이거나 카트 위치가 갱신되면 오버레이가 다시 그려진다.
 private const val FollowAnimMillis = 700
 private const val FitPaddingPx = 48
-private const val DefaultFitZoom = 15f
+// 히트맵 전체 화면에서 허용하는 최소 줌. 지오펜스 외곽을 충분히 볼 수는 있지만 과도한 축소는 막는다.
+internal const val HeatmapMinZoom = 15f
+private const val DefaultFitZoom = HeatmapMinZoom
+// 지도 확대 "100%" 기준 줌(= 카트 추적 기본 줌 CartFollowZoom).
+internal const val MapZoom100Percent = 17f
+// 히트맵(FitGeofence) 확대 최대 줌. 마커 크기는 GeofenceMapOverlay에서 60%로 독립적으로 캡되므로,
+// 이 값은 마커가 아니라 지도 타일 디테일/이동(pan) 범위의 상한만 결정한다. 그래서 디자인 "100%"에
+// 픽셀 단위로 맞출 필요는 없고, 마커가 60%에 도달하면서 과확대되지 않는 상한으로 카트 100%(17)보다
+// 한 단계 높은 19로 확정한다.
+internal const val HeatmapMaxZoom = 19f
 // 카트 재중심 판단 오차(위경도 합). 이보다 벗어나면 카트로 다시 중심 이동.
 private const val CenterEpsilon = 1e-6
 
@@ -72,7 +81,10 @@ fun LiveGeofenceMap(
             maxZoomPreference = maxZoom ?: defaults.maxZoomPreference
         )
     }
-    val uiSettings = remember(gesturesEnabled) {
+    // 팬(스크롤)은 FitGeofence(히트맵 전체 조망)에서만 허용. FollowCart(카트 추적)는 팬을 켜면
+    // idle 재중심 로직과 충돌하므로 끈다.
+    val panEnabled = gesturesEnabled && camera is MapCamera.FitGeofence
+    val uiSettings = remember(gesturesEnabled, panEnabled) {
         MapUiSettings(
             compassEnabled = false,
             indoorLevelPickerEnabled = false,
@@ -81,9 +93,8 @@ fun LiveGeofenceMap(
             rotationGesturesEnabled = false,
             tiltGesturesEnabled = false,
             zoomControlsEnabled = false,
-            // 팬(스크롤)은 꺼서 중심이 카트에서 벗어나지 않게 하고, 줌만 허용.
-            scrollGesturesEnabled = false,
-            scrollGesturesEnabledDuringRotateOrZoom = false,
+            scrollGesturesEnabled = panEnabled,
+            scrollGesturesEnabledDuringRotateOrZoom = panEnabled,
             zoomGesturesEnabled = gesturesEnabled
         )
     }

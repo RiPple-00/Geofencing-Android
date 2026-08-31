@@ -44,6 +44,7 @@ import com.example.geofencing.ui.map.CartMarker
 import com.example.geofencing.ui.map.GeofenceMapContent
 import com.example.geofencing.ui.map.LiveGeofenceMap
 import com.example.geofencing.ui.map.MapCamera
+import com.example.geofencing.ui.map.MapZoom100Percent
 import com.example.geofencing.ui.components.SectionDivider
 import com.example.geofencing.ui.components.StatusBadge
 import com.example.geofencing.ui.components.StatusKind
@@ -93,11 +94,12 @@ data class CartUiState(
 
 private val CartMapHeight = 273.dp
 // inline 지도 줌(카트 타이트 추적). TODO(측정): 실제 값 확정.
-private const val CartFollowZoom = 17f
+private const val CartFollowZoom = MapZoom100Percent // 100%
 // fullscreen은 inline 대비 1.2배 확대(줌 레벨은 로그 스케일이라 log2).
 private val CartFullscreenZoom = CartFollowZoom + log2(1.2f)
-// fullscreen 제스처 확대/축소 한계: 100%(=inline, 축소 최대) ~ 300%(확대 최대).
-private val CartMinZoom = CartFollowZoom
+// fullscreen 제스처 확대/축소 한계. 축소는 geofence가 보이되 너무 작아지지 않는 선(열림 17에서 ~1레벨),
+// 확대는 300%까지.
+private const val CartMinZoom = 16f
 private val CartMaxZoom = CartFollowZoom + log2(3f)
 private val MapToTitleGap = 32.dp
 private val TitleToIdGap = 14.dp

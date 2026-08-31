@@ -37,6 +37,7 @@ import com.example.geofencing.ui.components.CartStatStyle
 import com.example.geofencing.ui.components.CartStateRow
 import com.example.geofencing.ui.components.DisconnectRow
 import com.example.geofencing.ui.components.ListSection
+import com.example.geofencing.ui.components.MapExpandButton
 import com.example.geofencing.ui.components.SectionDivider
 import com.example.geofencing.ui.components.StatusKind
 import com.example.geofencing.ui.components.ViolationRow
@@ -88,10 +89,12 @@ private val PaginationGap = 20.dp
 @Composable
 fun SectorPage(
     state: SectorUiState,
-    // 지도 배너 슬롯. HomeScreen이 히트맵 오버레이와 공유하는 지도를 주입한다(배너에 표시할 때만).
+    // 지도 배너 슬롯. HomeScreen이 전체화면 히트맵과 공유하는 지도를 주입한다(배너에 표시할 때만).
     bannerMap: @Composable () -> Unit,
     modifier: Modifier = Modifier,
+    // "Violation Heatmap" 라벨 탭 → 팝업. 확대(⤢) 버튼 → body 꽉 채우는 줌 지도.
     onHeatmapClick: () -> Unit = {},
+    onExpandMap: () -> Unit = {},
     onViolationClick: (SectorViolationEntry) -> Unit = {},
     onDisconnectClick: (SectorDisconnectEntry) -> Unit = {},
     onCartClick: (CartStateEntry) -> Unit = {},
@@ -109,10 +112,11 @@ fun SectorPage(
             .verticalScroll(rememberScrollState())
             .padding(bottom = PageBottomGap)
     ) {
-        // 지도 배너는 full-bleed. 지도(bannerMap)는 HomeScreen이 히트맵 오버레이와 공유해 주입한다.
+        // 지도 배너는 full-bleed. 지도(bannerMap)는 HomeScreen이 전체화면 히트맵과 공유해 주입한다.
         SectorMapBanner(
             map = bannerMap,
-            onHeatmapClick = onHeatmapClick
+            onLabelClick = onHeatmapClick,
+            onExpandClick = onExpandMap
         )
 
         // 나머지 콘텐츠는 좌우 공통 여백 적용.
@@ -205,7 +209,8 @@ fun SectorPage(
 @Composable
 private fun SectorMapBanner(
     map: @Composable () -> Unit,
-    onHeatmapClick: () -> Unit,
+    onLabelClick: () -> Unit,
+    onExpandClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -215,9 +220,10 @@ private fun SectorMapBanner(
         contentAlignment = Alignment.BottomCenter
     ) {
         map()
+        // "Violation Heatmap >" 라벨(원본) — 탭 시 팝업.
         Row(
             modifier = Modifier
-                .noRippleClickable(onHeatmapClick)
+                .noRippleClickable(onLabelClick)
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -233,6 +239,13 @@ private fun SectorMapBanner(
                 modifier = Modifier.size(16.dp)
             )
         }
+        // 우상단 확대(⤢) 버튼 → body 꽉 채우는 줌 지도.
+        MapExpandButton(
+            onClick = onExpandClick,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(12.dp)
+        )
     }
 }
 

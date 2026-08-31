@@ -1,8 +1,10 @@
 package com.example.geofencing.ui.components
 
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.geofencing.ui.theme.extendedColors
 
 // StatusListRow(코어)의 의미 래퍼들. 컨텍스트별 폭/status는 여기서.
 //
@@ -10,15 +12,17 @@ import androidx.compose.ui.unit.dp
 //   - (sector, cart, ...) : Whole Sector 페이지처럼 섹터+카트를 함께 보여줄 때
 //   - (cart, ...)         : 섹터가 이미 정해진 화면에서 카트만 보여줄 때(data2=null)
 
-// 폭 확정값: Violation 100/78, Disconnect 100/88, All Cart List 85/90.
-private val ViolationData1Width = 100.dp
-private val ViolationData2Width = 78.dp
-private val DisconnectData1Width = 100.dp
-private val DisconnectData2Width = 88.dp
+// 폭(360 기준 고정, 시간 칸은 weight로 stretch → 반응형).
+// Violation = cart 78 / sector 100, Disconnect = cart 88 / sector 105, All Cart List = 85/90.
+private val ViolationData1Width = 78.dp    // cart
+private val ViolationData2Width = 100.dp   // sector
+private val DisconnectData1Width = 88.dp   // cart
+private val DisconnectData2Width = 105.dp  // sector
 private val CartStateData1Width = 85.dp
 private val CartStateData2Width = 90.dp
 
-// Violation 섹션 행(섹터+카트): 우측에 시계 아이콘 + 빨강 경고 시간.
+// Violation 섹션 행(카트+섹터): 우측에 시계 아이콘 + 빨강 경고 시간.
+// 카트가 메인이므로 카트를 data1(왼쪽·강조), 섹터를 data2(보조)로 둔다.
 @Composable
 fun ViolationRow(
     sector: String,
@@ -28,8 +32,8 @@ fun ViolationRow(
     modifier: Modifier = Modifier,
     showDivider: Boolean = true
 ) = StatusListRow(
-    data1 = sector,
-    data2 = cart,
+    data1 = cart,
+    data2 = sector,
     status = RowStatus.AlertTime(remaining),
     onClick = onClick,
     modifier = modifier,
@@ -57,7 +61,8 @@ fun ViolationRow(
     showDivider = showDivider
 )
 
-// Disconnect 섹션 행(섹터+카트): 우측에 회색 경과 시간.
+// Disconnect 섹션 행(카트+섹터): 우측에 회색 경과 시간.
+// 카트가 메인이므로 카트를 data1(왼쪽·강조), 섹터를 data2(보조)로 둔다.
 @Composable
 fun DisconnectRow(
     sector: String,
@@ -67,8 +72,8 @@ fun DisconnectRow(
     modifier: Modifier = Modifier,
     showDivider: Boolean = true
 ) = StatusListRow(
-    data1 = sector,
-    data2 = cart,
+    data1 = cart,
+    data2 = sector,
     status = RowStatus.Elapsed(elapsed),
     onClick = onClick,
     modifier = modifier,
@@ -97,6 +102,7 @@ fun DisconnectRow(
 )
 
 // All Cart List 행: 카트 + 주행상태 + 상태 배지(Compliance / Violation / Disconnect).
+// 주행상태는 의미 있는 값이라 data2를 text/secondary로 밝게 유지(기본 border/strong 대신).
 @Composable
 fun CartStateRow(
     cart: String,
@@ -113,5 +119,6 @@ fun CartStateRow(
     modifier = modifier,
     data1Width = CartStateData1Width,
     data2Width = CartStateData2Width,
+    data2Color = MaterialTheme.extendedColors.textSecondary,
     showDivider = showDivider
 )
