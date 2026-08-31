@@ -25,7 +25,8 @@ object SectorSnapshotCache {
     private fun geofenceDigest(geofence: List<LatLng>): String {
         val raw = geofence.joinToString(";") { "${it.latitude},${it.longitude}" }
         val digest = MessageDigest.getInstance("SHA-256").digest(raw.toByteArray())
-        return digest.take(8).joinToString("") { "%02x".format(it) }
+        // Byte에 %02x를 직접 쓰면 음수 바이트가 부호확장돼 8자리로 나오므로 0xFF로 언사인 변환.
+        return digest.take(8).joinToString("") { "%02x".format(it.toInt() and 0xFF) }
     }
 
     private fun dir(context: Context): File =
