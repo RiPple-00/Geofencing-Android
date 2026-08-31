@@ -312,7 +312,7 @@ WholeSector/Sector/Cart ViewModel ──(*UiMapper)──▶ *UiState ──(Sta
 | 태그 | 출처 | 내용 |
 | --- | --- | --- |
 | `Analytics` | `DebugAnalyticsLogger` | 화면 진입/이벤트 로그(`screen: ...`, `event: ...`). 임시 구현 — 실제 전송 대신 Logcat에만 출력. |
-| `OkHttp` | OkHttp `HttpLoggingInterceptor` | HTTP 요청/응답 로그(Supabase/REST 통신 디버깅). |
+| `okhttp3.OkHttpClient` | OkHttp `HttpLoggingInterceptor`(기본 로거) | HTTP 요청/응답 로그. **Debug만 BODY 레벨**, Release는 출력 없음. |
 | `AndroidRuntime` | 시스템 | `FATAL EXCEPTION` — 앱 크래시 스택트레이스. |
 
 ### 앱 실행 오류 확인 방법
