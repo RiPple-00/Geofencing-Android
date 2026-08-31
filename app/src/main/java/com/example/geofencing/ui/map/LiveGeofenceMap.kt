@@ -37,7 +37,9 @@ import com.google.android.gms.maps.GoogleMap as GmsGoogleMap
 // 라이브 projection으로 겹친다. 카메라가 움직이거나 카트 위치가 갱신되면 오버레이가 다시 그려진다.
 private const val FollowAnimMillis = 700
 private const val FitPaddingPx = 48
-private const val DefaultFitZoom = 15f
+// 히트맵 전체 화면에서 허용하는 최소 줌. 지오펜스 외곽을 충분히 볼 수는 있지만 과도한 축소는 막는다.
+internal const val HeatmapMinZoom = 15f
+private const val DefaultFitZoom = HeatmapMinZoom
 // 지도 확대 "100%" 기준 줌(= 카트 추적 기본 줌 CartFollowZoom).
 internal const val MapZoom100Percent = 17f
 // 히트맵(FitGeofence) 확대 최대 줌 = 디자인 "100%". 마커는 60%에서 캡되므로 이 값은 지도 디테일/이동 범위만 결정.

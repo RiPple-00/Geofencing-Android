@@ -34,6 +34,7 @@ import com.example.geofencing.ui.components.LoadStateContent
 import com.example.geofencing.ui.components.MapReduceButton
 import com.example.geofencing.ui.components.SectorTabRow
 import com.example.geofencing.ui.map.GeofenceMapContent
+import com.example.geofencing.ui.map.HeatmapMinZoom
 import com.example.geofencing.ui.map.LiveGeofenceMap
 import com.example.geofencing.ui.map.MapCamera
 import com.example.geofencing.ui.map.HeatmapMaxZoom
@@ -83,7 +84,8 @@ fun HomeScreen(
                 camera = camera,
                 modifier = Modifier.fillMaxSize(),
                 gesturesEnabled = gestures,
-                // 확대(제스처) 히트맵 최대 줌 = HeatmapMaxZoom(디자인 확대 사이즈까지). 배너/팝업은 제스처 없어 무관.
+                // 확대 지도만 15~19 줌 범위로 제한. 배너/팝업은 제스처가 없어 무관.
+                minZoom = if (gestures) HeatmapMinZoom else null,
                 maxZoom = if (gestures) HeatmapMaxZoom else null
             )
         }

@@ -108,7 +108,12 @@ fun GeofenceMapOverlay(
             val markerRadiusPx = projector.geoRadiusToPx(cart.position, MarkerRadiusMeters)
             // 마커 바깥 지름(테두리 포함) = 반경×(2 + 테두리비율). 테두리는 중앙 정렬이라 반경 밖으로 절반 나감.
             // Figma의 마커 크기는 border 포함값이므로 이 바깥 지름으로 비교(60%부터 라벨).
-            if (markerRadiusPx * (2f + MarkerBorderRatio) >= minLabelMarkerDiameterPx) {
+            if (shouldShowCartLabel(
+                    hasSelectedCart = content.selectedCartId != null,
+                    markerOuterDiameterPx = markerRadiusPx * (2f + MarkerBorderRatio),
+                    minLabelMarkerDiameterPx = minLabelMarkerDiameterPx
+                )
+            ) {
                 val pos = projector.project(cart.position)
                 Text(
                     text = cart.id,
@@ -151,6 +156,13 @@ private val CartLabelGap = 6.dp
 private val CartLabelMinMarkerSize = 30.2.dp
 // 마커 테두리/반경 비율: 스펙 3종 공통(compliance 2.58/22.725, violation·disconnect 1.125/9.9 ≈ 0.1135).
 private const val MarkerBorderRatio = 0.1135f
+
+// Cart Page는 selectedCartId로 추적 대상을 지정한다. 같은 오버레이를 쓰더라도 이 화면에서는 카트 이름을 그리지 않는다.
+internal fun shouldShowCartLabel(
+    hasSelectedCart: Boolean,
+    markerOuterDiameterPx: Float,
+    minLabelMarkerDiameterPx: Float
+): Boolean = !hasSelectedCart && markerOuterDiameterPx >= minLabelMarkerDiameterPx
 // glow의 stroke/blur를 반경 비율로 두어 줌 스케일 시 함께 커지게 함(drawable 비율에서 유도).
 private const val GlowFillAlpha = 0.30f
 private const val GlowStrokeAlpha = 0.50f
