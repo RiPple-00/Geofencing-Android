@@ -21,6 +21,7 @@ import com.example.geofencing.ui.theme.Body13
 import com.example.geofencing.ui.theme.GeofencingTheme
 import com.example.geofencing.ui.theme.Header24
 import com.example.geofencing.ui.theme.Label18
+import com.example.geofencing.ui.theme.UnitSuffixDisabledStyle
 import com.example.geofencing.ui.theme.UnitSuffixStyle
 import com.example.geofencing.ui.theme.extendedColors
 
@@ -114,12 +115,18 @@ private fun CartStatColumn(
                 style = valueStyle,
                 color = valueColor(stat.role, stat.value)
             )
-            // Card 스타일에선 모든 컬럼 값 뒤에 "cart" unit이 붙음. 색은 숫자와 동일.
+            // Card 스타일에선 값 뒤에 "cart" unit이 붙는다. 숫자 색과 무관하게:
+            // 값≠0 → text-secondary(+180% line-height), 값 0 → text-disabled(+140% line-height).
             if (style == CartStatStyle.Card) {
+                val enabled = stat.value != 0
                 Text(
                     text = "cart",
-                    style = UnitSuffixStyle,
-                    color = valueColor(stat.role, stat.value)
+                    style = if (enabled) UnitSuffixStyle else UnitSuffixDisabledStyle,
+                    color = if (enabled) {
+                        MaterialTheme.extendedColors.textSecondary
+                    } else {
+                        MaterialTheme.extendedColors.textDisabled
+                    }
                 )
             }
         }
