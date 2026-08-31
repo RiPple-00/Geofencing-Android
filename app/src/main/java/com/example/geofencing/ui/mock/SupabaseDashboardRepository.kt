@@ -38,7 +38,8 @@ import javax.inject.Singleton
 // 값 처리:
 //   - 위치: carts.lat/lng 사용, 없으면 geofence+상태로 합성(위반=경계 밖, 그 외=안쪽)
 //   - 위반 지속시간: 발생 후 경과 시간(now - occurred_at)으로 계산. 발생시각·속도·주소: 이벤트 컬럼
-//   - disconnect 상태: 스키마에 없음(violating/compliant 뿐)
+//   - 상태 매핑: geofence_status 'violating'->Violation, 'disconnected'->Disconnect, 그 외->Compliance
+//     (스키마 check는 009 마이그레이션에서 'disconnected'까지 허용하도록 확장됨)
 @OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
 class SupabaseDashboardRepository @Inject constructor(

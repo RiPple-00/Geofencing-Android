@@ -24,4 +24,5 @@ from (values
     ('Sector #4', 'Cart 9',  'idle', 37.5268, 126.9255)
 ) as c(sector_name, name, driving_status, lat, lng)
 join sectors s on s.name = c.sector_name
+    and s.site_id = (select id from sites where name = 'Golfzon County')
 on conflict do nothing;

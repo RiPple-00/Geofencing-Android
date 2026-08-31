@@ -40,6 +40,7 @@ join (values
     ('Cart 10', 'compliant', 'idle',    37.5048, 127.0330)
 ) as c(name, geofence_status, driving_status, lat, lng) on true
 where s.name = 'Sector #3'
+  and s.site_id = (select id from sites where name = 'Golfzon County')
 on conflict do nothing;
 
 -- ── Carts: Sector #4 (2 violating outside, 6 compliant inside) ────────────────
@@ -57,6 +58,7 @@ join (values
     ('Cart 8', 'compliant', 'idle',    37.5282, 126.9235)
 ) as c(name, geofence_status, driving_status, lat, lng) on true
 where s.name = 'Sector #4'
+  and s.site_id = (select id from sites where name = 'Golfzon County')
 on conflict do nothing;
 
 -- ── Violation events (run once — no unique key) ───────────────────────────────
@@ -74,4 +76,5 @@ from (values
      '{"type":"Point","coordinates":[126.9335,37.5258]}', '15 Km/h', 'Seoul Yeongdeungpo-gu, Uisadang-daero')
 ) as e(sector_name, cart_name, occurred_at, location, max_speed, address)
 join sectors s on s.name = e.sector_name
+    and s.site_id = (select id from sites where name = 'Golfzon County')
 join carts   c on c.sector_id = s.id and c.name = e.cart_name;
