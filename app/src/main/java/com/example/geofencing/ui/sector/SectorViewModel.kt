@@ -3,7 +3,7 @@ package com.example.geofencing.ui.sector
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.geofencing.ui.common.LoadState
-import com.example.geofencing.ui.mock.DashboardRepository
+import com.example.geofencing.ui.dashboard.DashboardRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,7 +38,7 @@ class SectorViewModel @Inject constructor(
                     LoadState.Loading -> LoadState.Loading
                     is LoadState.Error -> state
                     is LoadState.Success ->
-                        state.data?.let { LoadState.Success(sectorStateFrom(it)) }
+                        state.data?.let { LoadState.Success(sectorUiStateFrom(it)) }
                             ?: LoadState.Error("Sector not found: $name")
                 }
             }

@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.geofencing.ui.common.LoadState
 import com.example.geofencing.ui.common.map
-import com.example.geofencing.ui.mock.DashboardRepository
+import com.example.geofencing.ui.dashboard.DashboardRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +23,6 @@ class WholeSectorViewModel @Inject constructor(
 
     val state: StateFlow<LoadState<WholeSectorUiState>> =
         repository.observeSectors()
-            .map { it.map(::wholeSectorStateFrom) }
+            .map { it.map(::wholeSectorUiStateFrom) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LoadState.Loading)
 }

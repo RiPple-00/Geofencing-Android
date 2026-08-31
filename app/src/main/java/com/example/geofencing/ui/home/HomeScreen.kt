@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -23,11 +22,10 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.geofencing.ui.analytics.AnalyticsEvent
 import com.example.geofencing.ui.analytics.LocalAnalytics
 import com.example.geofencing.ui.cart.CartPage
-import com.example.geofencing.ui.cart.CartViewModel
+import com.example.geofencing.ui.cart.CartUiState
 import com.example.geofencing.ui.common.LoadState
 import com.example.geofencing.ui.components.AppTopBar
 import com.example.geofencing.ui.components.LoadStateContent
@@ -40,7 +38,7 @@ import com.example.geofencing.ui.map.MapCamera
 import com.example.geofencing.ui.map.HeatmapMaxZoom
 import com.example.geofencing.ui.map.ViolationHeatmapOverlay
 import com.example.geofencing.ui.sector.SectorPage
-import com.example.geofencing.ui.sector.SectorViewModel
+import com.example.geofencing.ui.sector.SectorUiState
 import com.example.geofencing.ui.theme.extendedColors
 import com.example.geofencing.ui.wholesector.WholeSectorPage
 import com.example.geofencing.ui.wholesector.WholeSectorUiState
@@ -58,8 +56,14 @@ private const val HeatmapGeofenceMarginDp = 15
 @Composable
 fun HomeScreen(
     wholeSectorState: LoadState<WholeSectorUiState>,
+    sectorState: LoadState<SectorUiState>,
+    cartState: LoadState<CartUiState>,
     modifier: Modifier = Modifier,
+    onSelectSector: (String) -> Unit = {},
+    onSelectCart: (String, String) -> Unit = { _, _ -> },
     onWholeSectorRetry: () -> Unit = {},
+    onSectorRetry: () -> Unit = {},
+    onCartRetry: () -> Unit = {},
     onBellClick: () -> Unit = {}
 ) {
     // 0 = Whole Sector, 1.. = sectorNames
@@ -94,8 +98,6 @@ fun HomeScreen(
     BackHandler(enabled = openCartTarget != null) { openCartTarget = null }
     BackHandler(enabled = mapExpanded) { mapExpanded = false }
 
-    val sectorViewModel: SectorViewModel = hiltViewModel()
-    val cartViewModel: CartViewModel = hiltViewModel()
     val analytics = LocalAnalytics.current
 
     // 탭 이름은 로드된 WholeSector 상태(Supabase)의 섹터 목록에서 파생 → 실데이터와 일관.
@@ -106,11 +108,8 @@ fun HomeScreen(
 
     // 선택 탭/드릴다운을 각 ViewModel에 반영.
     val sectorName = sectorNames.getOrNull(safeIndex - 1).orEmpty()
-    LaunchedEffect(sectorName) { if (sectorName.isNotEmpty()) sectorViewModel.select(sectorName) }
-    LaunchedEffect(openCartTarget) { openCartTarget?.let { cartViewModel.select(it.first, it.second) } }
-
-    val sectorState by sectorViewModel.state.collectAsState()
-    val cartState by cartViewModel.state.collectAsState()
+    LaunchedEffect(sectorName) { if (sectorName.isNotEmpty()) onSelectSector(sectorName) }
+    LaunchedEffect(openCartTarget) { openCartTarget?.let { onSelectCart(it.first, it.second) } }
 
     // 히트맵 닫기: 오버레이가 아직 떠 있는 동안 지도를 배너로 되돌려(배너 카메라로 재-fit) 그 프레임을 스크림
     // 뒤에 숨긴 뒤, 다음 프레임에 오버레이를 제거 → 배너에 1.1x가 잠깐 비치지 않는다.
@@ -157,114 +156,114 @@ fun HomeScreen(
                 .fillMaxSize()
                 .background(MaterialTheme.extendedColors.background)
         ) {
-        // 크롬(제목+벨 / 탭 바)
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.extendedColors.fillHighest)
-                .statusBarsPadding()
-        ) {
-            AppTopBar(
-                title = APP_TITLE,
-                onBellClick = {
-                    analytics.log(AnalyticsEvent.BellClicked)
-                    onBellClick()
-                }
-            )
-            SectorTabRow(
-                sectorNames = sectorNames,
-                selectedIndex = safeIndex,
-                // 탭 전환 시 열린 카트는 닫는다.
-                onSelect = {
-                    analytics.log(AnalyticsEvent.TabSelected(it))
-                    selectedIndex = it
-                    openCartTarget = null
-                }
-            )
-        }
-
-        // body — 좌우 여백은 각 페이지가 담당(지도 full-bleed 허용).
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-        ) {
-            if (openCartTarget != null) {
-                // 카트 상세 — 로딩 스피너/오류(재시도)/정상을 LoadStateContent가 분기.
-                LoadStateContent(
-                    state = cartState,
-                    onRetry = {
-                        analytics.log(AnalyticsEvent.RetryClicked("Cart"))
-                        cartViewModel.retry()
+            // 크롬(제목+벨 / 탭 바)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.extendedColors.fillHighest)
+                    .statusBarsPadding()
+            ) {
+                AppTopBar(
+                    title = APP_TITLE,
+                    onBellClick = {
+                        analytics.log(AnalyticsEvent.BellClicked)
+                        onBellClick()
                     }
-                ) { cart ->
-                    CartPage(state = cart, onBack = { openCartTarget = null })
-                }
-            } else {
-                when (safeIndex) {
-                    0 -> LoadStateContent(
-                        state = wholeSectorState,
+                )
+                SectorTabRow(
+                    sectorNames = sectorNames,
+                    selectedIndex = safeIndex,
+                    // 탭 전환 시 열린 카트는 닫는다.
+                    onSelect = {
+                        analytics.log(AnalyticsEvent.TabSelected(it))
+                        selectedIndex = it
+                        openCartTarget = null
+                    }
+                )
+            }
+
+            // body — 좌우 여백은 각 페이지가 담당(지도 full-bleed 허용).
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                if (openCartTarget != null) {
+                    // 카트 상세 — 로딩 스피너/오류(재시도)/정상을 LoadStateContent가 분기.
+                    LoadStateContent(
+                        state = cartState,
                         onRetry = {
-                            analytics.log(AnalyticsEvent.RetryClicked("WholeSector"))
-                            onWholeSectorRetry()
+                            analytics.log(AnalyticsEvent.RetryClicked("Cart"))
+                            onCartRetry()
                         }
-                    ) { ws ->
-                        WholeSectorPage(
-                            state = ws,
-                            // Violation/Disconnect 카트 클릭 → 해당 섹터의 해당 카트로 드릴다운
-                            onViolationClick = { openCart(it.sector, it.cart, "whole_violation") },
-                            onDisconnectClick = { openCart(it.sector, it.cart, "whole_disconnect") },
-                            // 섹터 카드 클릭 → 해당 섹터 탭으로 전환
-                            onSectorClick = { summary ->
-                                analytics.log(AnalyticsEvent.SectorOpened(summary.name))
-                                val idx = sectorNames.indexOf(summary.name)
-                                if (idx >= 0) selectedIndex = idx + 1
+                    ) { cart ->
+                        CartPage(state = cart, onBack = { openCartTarget = null })
+                    }
+                } else {
+                    when (safeIndex) {
+                        0 -> LoadStateContent(
+                            state = wholeSectorState,
+                            onRetry = {
+                                analytics.log(AnalyticsEvent.RetryClicked("WholeSector"))
+                                onWholeSectorRetry()
                             }
-                        )
-                    }
-                    else -> LoadStateContent(
-                        state = sectorState,
-                        onRetry = {
-                            analytics.log(AnalyticsEvent.RetryClicked("Sector"))
-                            sectorViewModel.retry()
-                        }
-                    ) { sectorUi ->
-                        SectorPage(
-                            state = sectorUi,
-                            // 지도 배너는 공유 지도를 여기서 주입(팝업·body 줌 지도와 같은 인스턴스). 배너는 제스처 off.
-                            bannerMap = {
-                                if (mapInBanner && !mapExpanded && sectorMapContent != null) {
-                                    movableMap(sectorMapContent, bannerCamera, false)
+                        ) { ws ->
+                            WholeSectorPage(
+                                state = ws,
+                                // Violation/Disconnect 카트 클릭 → 해당 섹터의 해당 카트로 드릴다운
+                                onViolationClick = { openCart(it.sector, it.cart, "whole_violation") },
+                                onDisconnectClick = { openCart(it.sector, it.cart, "whole_disconnect") },
+                                // 섹터 카드 클릭 → 해당 섹터 탭으로 전환
+                                onSectorClick = { summary ->
+                                    analytics.log(AnalyticsEvent.SectorOpened(summary.name))
+                                    val idx = sectorNames.indexOf(summary.name)
+                                    if (idx >= 0) selectedIndex = idx + 1
                                 }
-                            },
-                            // 라벨 탭 → 팝업, 확대(⤢) 버튼 → body 꽉 채우는 줌 지도.
-                            onHeatmapClick = {
-                                mapInBanner = false
-                                showHeatmap = true
-                            },
-                            onExpandMap = { mapExpanded = true },
-                            // 카트 클릭(violation/disconnect/all cart) → 현재 섹터의 해당 카트로 드릴다운
-                            onViolationClick = { openCart(sectorName, it.cart, "sector_violation") },
-                            onDisconnectClick = { openCart(sectorName, it.cart, "sector_disconnect") },
-                            onCartClick = { openCart(sectorName, it.cart, "sector_cart") }
+                            )
+                        }
+                        else -> LoadStateContent(
+                            state = sectorState,
+                            onRetry = {
+                                analytics.log(AnalyticsEvent.RetryClicked("Sector"))
+                                onSectorRetry()
+                            }
+                        ) { sectorUi ->
+                            SectorPage(
+                                state = sectorUi,
+                                // 지도 배너는 공유 지도를 여기서 주입(팝업·body 줌 지도와 같은 인스턴스). 배너는 제스처 off.
+                                bannerMap = {
+                                    if (mapInBanner && !mapExpanded && sectorMapContent != null) {
+                                        movableMap(sectorMapContent, bannerCamera, false)
+                                    }
+                                },
+                                // 라벨 탭 → 팝업, 확대(⤢) 버튼 → body 꽉 채우는 줌 지도.
+                                onHeatmapClick = {
+                                    mapInBanner = false
+                                    showHeatmap = true
+                                },
+                                onExpandMap = { mapExpanded = true },
+                                // 카트 클릭(violation/disconnect/all cart) → 현재 섹터의 해당 카트로 드릴다운
+                                onViolationClick = { openCart(sectorName, it.cart, "sector_violation") },
+                                onDisconnectClick = { openCart(sectorName, it.cart, "sector_disconnect") },
+                                onCartClick = { openCart(sectorName, it.cart, "sector_cart") }
+                            )
+                        }
+                    }
+                }
+
+                // 확대(⤢) 버튼 → body(탭바 아래)를 꽉 채우는 줌 지도(cart식). 핀치 줌/이동, 축소(⌟)/뒤로가기로 닫기.
+                if (mapExpanded && sectorMapContent != null) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        movableMap(sectorMapContent, heatmapCamera, true)
+                        MapReduceButton(
+                            onClick = { mapExpanded = false },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(12.dp)
                         )
                     }
                 }
             }
-
-            // 확대(⤢) 버튼 → body(탭바 아래)를 꽉 채우는 줌 지도(cart식). 핀치 줌/이동, 축소(⌟)/뒤로가기로 닫기.
-            if (mapExpanded && sectorMapContent != null) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    movableMap(sectorMapContent, heatmapCamera, true)
-                    MapReduceButton(
-                        onClick = { mapExpanded = false },
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(12.dp)
-                    )
-                }
-            }
-        }
         }
 
         // "Violation Heatmap" 라벨 탭 → 팝업(정적, 스크림). 앱 최상단 레이어(크롬 위)를 덮는다.

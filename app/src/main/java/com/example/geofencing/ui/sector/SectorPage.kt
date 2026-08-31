@@ -39,10 +39,8 @@ import com.example.geofencing.ui.components.DisconnectRow
 import com.example.geofencing.ui.components.ListSection
 import com.example.geofencing.ui.components.MapExpandButton
 import com.example.geofencing.ui.components.SectionDivider
-import com.example.geofencing.ui.components.StatusKind
 import com.example.geofencing.ui.components.ViolationRow
 import com.example.geofencing.ui.components.noRippleClickable
-import com.example.geofencing.ui.map.CartMarker
 import com.example.geofencing.ui.theme.Body14
 import com.example.geofencing.ui.theme.GeofencingTheme
 import com.example.geofencing.ui.theme.Header20
@@ -50,32 +48,6 @@ import com.example.geofencing.ui.theme.Label14
 import com.example.geofencing.ui.theme.PageHorizontalMargin
 import com.example.geofencing.ui.theme.RoundedMd
 import com.example.geofencing.ui.theme.extendedColors
-import com.google.android.gms.maps.model.LatLng
-
-// 화면 표시용 UI state. 지금은 프리뷰/임시 데이터, 나중에 ViewModel(API)이 생성.
-// Violation/Disconnect는 섹터가 정해져 있어 카트 단독(섹터 컬럼 없음).
-data class SectorViolationEntry(val cart: String, val remaining: String)
-data class SectorDisconnectEntry(val cart: String, val elapsed: String)
-data class CartStateEntry(val cart: String, val drivingState: String, val kind: StatusKind)
-
-data class SectorUiState(
-    val id: Int,
-    val name: String,
-    val address: String,
-    val wholeCarts: Int,
-    val violation: Int,
-    val disconnect: Int,
-    val violations: List<SectorViolationEntry>,
-    val disconnects: List<SectorDisconnectEntry>,
-    val allCarts: List<CartStateEntry>,
-    val currentPage: Int,
-    val totalPages: Int,
-    // 지도용: geofence 경계 + 카트 위치(실시간). 실데이터 전엔 비어있을 수 있음.
-    val geofence: List<LatLng> = emptyList(),
-    val carts: List<CartMarker> = emptyList(),
-    // Violation Heatmap 팝업용: 위반 발생 위치들.
-    val violationPoints: List<LatLng> = emptyList()
-)
 
 // TODO(측정): 페이지 레벨 실측값. 지금은 임시 추정치.
 private val SectorMapHeight = 240.dp

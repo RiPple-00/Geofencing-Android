@@ -40,7 +40,6 @@ import com.example.geofencing.ui.components.AppIconButton
 import com.example.geofencing.ui.components.BackButton
 import com.example.geofencing.ui.components.MapExpandButton
 import com.example.geofencing.ui.components.MapReduceButton
-import com.example.geofencing.ui.map.CartMarker
 import com.example.geofencing.ui.map.GeofenceMapContent
 import com.example.geofencing.ui.map.LiveGeofenceMap
 import com.example.geofencing.ui.map.MapCamera
@@ -59,38 +58,11 @@ import com.example.geofencing.ui.theme.Label18
 import com.example.geofencing.ui.theme.PageHorizontalMargin
 import com.example.geofencing.ui.theme.Title16
 import com.example.geofencing.ui.theme.extendedColors
-import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.log2
-
-// 위반 카트 전용 상세(위반일 때만 non-null).
-data class ViolationDetail(
-    val duration: String,   // "8m 45s"
-    val maxSpeed: String,   // "16 Km/h"
-    val atTime: String,     // "2026.07.20 15:02:30"
-    val atAddress: String
-)
-
-// 화면 표시용 UI state. 지오펜스 상태에 따라 렌더가 갈린다:
-// - Disconnect: 라이브 데이터 없음 → 새로고침 카운트다운 없음, Operation도 Disconnect 배지.
-// - Violation: violation 상세 카드 + Violation at Time/Address 표시.
-// - 주소 색 = 지오펜스 상태 색(Compliance=brand / Violation=critical / Disconnect=border-strong).
-data class CartUiState(
-    val sectorName: String,
-    val cartName: String,
-    val registeredId: String,
-    val operationStatus: String,
-    val geofenceStatus: StatusKind,
-    val timestamp: String,
-    val address: String,
-    val violation: ViolationDetail? = null,
-    // 지도용: 섹터 geofence + 카트들(실시간 위치). 이 카트(cartName)가 중앙 추적·강조된다.
-    val geofence: List<LatLng> = emptyList(),
-    val carts: List<CartMarker> = emptyList()
-)
 
 private val CartMapHeight = 273.dp
 // inline 지도 줌(카트 타이트 추적). TODO(측정): 실제 값 확정.

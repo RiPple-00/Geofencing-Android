@@ -48,30 +48,6 @@ import com.example.geofencing.ui.theme.GeofencingTheme
 import com.example.geofencing.ui.theme.Header30
 import com.example.geofencing.ui.theme.PageHorizontalMargin
 import com.example.geofencing.ui.theme.extendedColors
-import com.google.android.gms.maps.model.LatLng
-
-// 화면 표시용 UI state. 지금은 프리뷰/임시 데이터, 나중에 ViewModel(API)이 생성.
-data class ViolationEntry(val sector: String, val cart: String, val remaining: String)
-data class DisconnectEntry(val sector: String, val cart: String, val elapsed: String)
-// geofence: 섹터 지도 스냅샷을 그릴 경계 좌표(스냅샷 캐시 키에도 사용). 실데이터 전엔 비어있을 수 있음.
-data class SectorSummary(
-    val id: Int,
-    val name: String,
-    val wholeCart: Int,
-    val violation: Int,
-    val disconnect: Int,
-    val geofence: List<LatLng> = emptyList()
-)
-
-data class WholeSectorUiState(
-    val totalCarts: Int,
-    val compliance: Int,
-    val violation: Int,
-    val disconnect: Int,
-    val violations: List<ViolationEntry>,
-    val disconnects: List<DisconnectEntry>,
-    val sectors: List<SectorSummary>
-)
 
 private val PageTopGap = 26.dp
 private val PageBottomGap = 92.dp
@@ -96,60 +72,60 @@ fun WholeSectorPage(
     onSectorClick: (SectorSummary) -> Unit = {}
 ) {
     Box(modifier = modifier.fillMaxSize()) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = PageHorizontalMargin)
-            .padding(top = PageTopGap, bottom = PageBottomGap)
-    ) {
-        TotalCartsSummary(state)
-
-        SectionDivider(top = 50.dp, bottom = 52.dp)
-
-        ListSection(title = "Violation", count = state.violations.size, unit = "Carts") {
-            state.violations.forEachIndexed { i, v ->
-                ViolationRow(
-                    sector = v.sector,
-                    cart = v.cart,
-                    remaining = v.remaining,
-                    onClick = { onViolationClick(v) },
-                    showDivider = i < state.violations.lastIndex
-                )
-            }
-        }
-
-        SectionDivider(top = 58.dp, bottom = 46.5.dp)
-
-        ListSection(title = "Disconnect", count = state.disconnects.size, unit = "Carts") {
-            state.disconnects.forEachIndexed { i, d ->
-                DisconnectRow(
-                    sector = d.sector,
-                    cart = d.cart,
-                    elapsed = d.elapsed,
-                    onClick = { onDisconnectClick(d) },
-                    showDivider = i < state.disconnects.lastIndex
-                )
-            }
-        }
-
-        SectionDivider(top = 64.dp, bottom = 46.dp)
-
-        // Sector List는 아이템이 플러시 카드(중앙정렬 없음) → 제목→카드 간격 = 이 값 + Space05(2) = 24.5.
-        ListSection(
-            title = "Sector List",
-            count = state.sectors.size,
-            unit = "Sectors",
-            titleToItemsGap = SectorListTitleToItemsGap
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = PageHorizontalMargin)
+                .padding(top = PageTopGap, bottom = PageBottomGap)
         ) {
-            state.sectors.forEachIndexed { i, s ->
-                SectorMapCard(sector = s, onClick = { onSectorClick(s) })
-                if (i < state.sectors.lastIndex) {
-                    Spacer(modifier = Modifier.height(SectorCardGap))
+            TotalCartsSummary(state)
+
+            SectionDivider(top = 50.dp, bottom = 52.dp)
+
+            ListSection(title = "Violation", count = state.violations.size, unit = "Carts") {
+                state.violations.forEachIndexed { i, v ->
+                    ViolationRow(
+                        sector = v.sector,
+                        cart = v.cart,
+                        remaining = v.remaining,
+                        onClick = { onViolationClick(v) },
+                        showDivider = i < state.violations.lastIndex
+                    )
+                }
+            }
+
+            SectionDivider(top = 58.dp, bottom = 46.5.dp)
+
+            ListSection(title = "Disconnect", count = state.disconnects.size, unit = "Carts") {
+                state.disconnects.forEachIndexed { i, d ->
+                    DisconnectRow(
+                        sector = d.sector,
+                        cart = d.cart,
+                        elapsed = d.elapsed,
+                        onClick = { onDisconnectClick(d) },
+                        showDivider = i < state.disconnects.lastIndex
+                    )
+                }
+            }
+
+            SectionDivider(top = 64.dp, bottom = 46.dp)
+
+            // Sector List는 아이템이 플러시 카드(중앙정렬 없음) → 제목→카드 간격 = 이 값 + Space05(2) = 24.5.
+            ListSection(
+                title = "Sector List",
+                count = state.sectors.size,
+                unit = "Sectors",
+                titleToItemsGap = SectorListTitleToItemsGap
+            ) {
+                state.sectors.forEachIndexed { i, s ->
+                    SectorMapCard(sector = s, onClick = { onSectorClick(s) })
+                    if (i < state.sectors.lastIndex) {
+                        Spacer(modifier = Modifier.height(SectorCardGap))
+                    }
                 }
             }
         }
-    }
 
         // 섹터 썸네일을 미리 생성(오프스크린). 스크롤 밖 형제라 레이아웃/스크롤엔 영향 없음.
         // 캡처 크기 = 카드 안쪽 지도 폭(화면폭 - 페이지 여백 - 카드 패딩) × 썸네일 높이.
