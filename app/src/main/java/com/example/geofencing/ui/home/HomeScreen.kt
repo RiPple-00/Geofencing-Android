@@ -53,18 +53,23 @@ private const val HeatmapGeofenceMarginDp = 15
 // - 드릴다운으로 열린 카트가 있으면 CartPage (뒤로가기로 닫음)
 // - 없으면 선택 탭의 페이지(Whole Sector / Sector)
 // 탭/드릴다운 선택 상태는 여기서 소유하고, 각 화면 데이터는 ViewModel(→ Repository)에서 관찰한다.
+// HomeScreen 콜백 묶음 — 파라미터 수를 줄이고(S107) route 배선을 단순화한다.
+data class HomeActions(
+    val onSelectSector: (String) -> Unit = {},
+    val onSelectCart: (String, String) -> Unit = { _, _ -> },
+    val onWholeSectorRetry: () -> Unit = {},
+    val onSectorRetry: () -> Unit = {},
+    val onCartRetry: () -> Unit = {},
+    val onBellClick: () -> Unit = {}
+)
+
 @Composable
 fun HomeScreen(
     wholeSectorState: LoadState<WholeSectorUiState>,
     sectorState: LoadState<SectorUiState>,
     cartState: LoadState<CartUiState>,
     modifier: Modifier = Modifier,
-    onSelectSector: (String) -> Unit = {},
-    onSelectCart: (String, String) -> Unit = { _, _ -> },
-    onWholeSectorRetry: () -> Unit = {},
-    onSectorRetry: () -> Unit = {},
-    onCartRetry: () -> Unit = {},
-    onBellClick: () -> Unit = {}
+    actions: HomeActions = HomeActions()
 ) {
     // 0 = Whole Sector, 1.. = sectorNames
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -108,8 +113,8 @@ fun HomeScreen(
 
     // 선택 탭/드릴다운을 각 ViewModel에 반영.
     val sectorName = sectorNames.getOrNull(safeIndex - 1).orEmpty()
-    LaunchedEffect(sectorName) { if (sectorName.isNotEmpty()) onSelectSector(sectorName) }
-    LaunchedEffect(openCartTarget) { openCartTarget?.let { onSelectCart(it.first, it.second) } }
+    LaunchedEffect(sectorName) { if (sectorName.isNotEmpty()) actions.onSelectSector(sectorName) }
+    LaunchedEffect(openCartTarget) { openCartTarget?.let { actions.onSelectCart(it.first, it.second) } }
 
     // 히트맵 닫기: 오버레이가 아직 떠 있는 동안 지도를 배너로 되돌려(배너 카메라로 재-fit) 그 프레임을 스크림
     // 뒤에 숨긴 뒤, 다음 프레임에 오버레이를 제거 → 배너에 1.1x가 잠깐 비치지 않는다.
@@ -167,7 +172,7 @@ fun HomeScreen(
                     title = APP_TITLE,
                     onBellClick = {
                         analytics.log(AnalyticsEvent.BellClicked)
-                        onBellClick()
+                        actions.onBellClick()
                     }
                 )
                 SectorTabRow(
@@ -194,7 +199,7 @@ fun HomeScreen(
                         state = cartState,
                         onRetry = {
                             analytics.log(AnalyticsEvent.RetryClicked("Cart"))
-                            onCartRetry()
+                            actions.onCartRetry()
                         }
                     ) { cart ->
                         CartPage(state = cart, onBack = { openCartTarget = null })
@@ -205,7 +210,7 @@ fun HomeScreen(
                             state = wholeSectorState,
                             onRetry = {
                                 analytics.log(AnalyticsEvent.RetryClicked("WholeSector"))
-                                onWholeSectorRetry()
+                                actions.onWholeSectorRetry()
                             }
                         ) { ws ->
                             WholeSectorPage(
@@ -225,7 +230,7 @@ fun HomeScreen(
                             state = sectorState,
                             onRetry = {
                                 analytics.log(AnalyticsEvent.RetryClicked("Sector"))
-                                onSectorRetry()
+                                actions.onSectorRetry()
                             }
                         ) { sectorUi ->
                             SectorPage(

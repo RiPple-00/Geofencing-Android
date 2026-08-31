@@ -26,11 +26,13 @@ fun HomeRoute(
         sectorState = sectorState,
         cartState = cartState,
         modifier = modifier,
-        onSelectSector = sectorViewModel::select,
-        onSelectCart = cartViewModel::select,
-        onWholeSectorRetry = wholeSectorViewModel::retry,
-        onSectorRetry = sectorViewModel::retry,
-        onCartRetry = cartViewModel::retry,
-        onBellClick = onBellClick
+        actions = HomeActions(
+            onSelectSector = sectorViewModel::select,
+            onSelectCart = cartViewModel::select,
+            onWholeSectorRetry = wholeSectorViewModel::retry,
+            onSectorRetry = sectorViewModel::retry,
+            onCartRetry = cartViewModel::retry,
+            onBellClick = onBellClick
+        )
     )
 }
