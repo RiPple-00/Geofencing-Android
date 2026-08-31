@@ -15,7 +15,7 @@
 | versionName / versionCode | `1.0` / `1` (`app/build.gradle.kts`) |
 | 배포 APK 파일명 | `geofence_v1.2.apk` (Release 서명) |
 
-> ⚠️ **버전 불일치 주의**: 배포 파일명은 `v1.2`이지만 앱 내부 `versionName`은 아직 `1.0`이다. 스토어 배포/업데이트 식별이 필요해지면 `versionName`/`versionCode`를 올려야 한다. (아래 10. 기술 부채 참고)
+> ⚠️ **버전 불일치 주의**: 배포 파일명은 `v1.2`이지만 앱 내부 `versionName`은 아직 `1.0`이다. 스토어 배포/업데이트 식별이 필요해지면 `versionName`/`versionCode`를 올려야 한다. (아래 12. 기술 부채 참고)
 
 ---
 
@@ -74,7 +74,59 @@
 
 ---
 
-## 4. 프로젝트 구조
+## 4. 기능 및 화면 개요
+
+앱은 **Whole Sector → Sector → Cart** 3단계 드릴다운으로 구성된다. 상단 크롬(상단바 + 섹터 탭)은 `HomeScreen`이 공통 제공한다.
+
+| 화면 | 내용 | 이동 |
+| --- | --- | --- |
+| **Whole Sector** (Main) | 사이트 전체 요약(총 카트 + Compliance/Violation/Disconnect 카운트), Violation·Disconnect 카트 리스트, Sector 카드 목록(지도 썸네일) | 섹터 탭/카드 → Sector · 카트 행 → Cart |
+| **Sector** | 섹터 지도 배너(지오펜스 + 카트 마커), **Violation Heatmap**(라벨 탭=팝업, ⤢=전체화면 줌 지도), Violation·Disconnect·All Cart 리스트(페이지네이션) | 카트 행 → Cart |
+| **Cart** | 선택 카트 상세(상태·주행상태·등록ID·타임스탬프, 위반 시 지속시간/최고속도/시각/주소) + 카트 추적 지도 | 뒤로 → Sector |
+
+- **지도 모드**: 섹터 카드 썸네일 / 배너 / 전체화면(히트맵·카트 추적). 마커 = 카트(상태 색), 뒤 glow = 위반 강조. 마커/줌 상수는 Figma 실측 기반(`MapConfig` 등).
+- **상태 표현**: 로딩 / 에러(재시도) / 성공을 `LoadStateContent`가 분기.
+- **보류(기획 미확정)**: 로그인·로그아웃, 알림, 검색 — 별도 브랜치에서 대기.
+
+---
+
+## 5. 도메인 용어 및 데이터 규약
+
+### 계층 · 용어
+
+```
+Site (고객사, 예: "Golfzon County")
+ └─ Sector (골프장 1곳, 지오펜스 폴리곤)
+     └─ Cart (골프카트, 10초 간격 위치/상태 전송)
+```
+
+| 용어 | 설명 |
+| --- | --- |
+| **Site** | 고객사. 여러 Sector 보유 |
+| **Sector** | 골프장 1곳. 지오펜스 폴리곤 경계를 가짐 |
+| **Cart** | 골프카트 1대. 특정 Sector 소속, 10초 간격으로 위치/상태 전송 |
+| **GeofenceEvent** | 카트가 소속 Sector 지오펜스를 벗어날 때 발생하는 이탈 이벤트 |
+
+### 상태 enum
+
+- **geofenceStatus**: `violating`(이탈) · `compliant`(정상) — 실 API 계약값.
+  - `disconnected`(통신 끊김)은 **앱 목(mock) 실험 상태로, 초기(7월) REST API에는 없음.** 실 BE 연동 시 조정 필요.
+- **drivingStatus**: `driving` · `idle`.
+
+### 좌표 규약 (GeoJSON) ⚠️
+
+- 모든 좌표는 GeoJSON. **`[lng, lat]` — 경도가 먼저다** (위도·경도 직관과 반대). Android 변환은 `LatLng(coordinates[1], coordinates[0])`.
+- **Polygon**은 외곽 링(`coordinates[0]`) 하나만 사용, **첫 점 = 마지막 점으로 닫힘**. 지도에 그릴 땐 닫힘점을 제거(`geoJsonRingToLatLng`가 처리).
+- **Point**는 이벤트 위치 등 단일 좌표.
+- GeoJSON 관련 버그 대부분이 `[lng, lat]` 순서 혼동에서 발생하니 주의.
+
+### 시간
+
+- 모든 시각은 **UTC ISO 8601** 문자열(예: `2026-07-07T05:12:33Z`)로 교환. 로컬(KST) 변환·표시는 App이 담당.
+
+---
+
+## 6. 프로젝트 구조
 
 ```
 app/src/main/java/com/example/geofencing
@@ -135,7 +187,7 @@ WholeSector/Sector/Cart ViewModel ──(*UiMapper)──▶ *UiState ──(Sta
 
 ---
 
-## 5. 아키텍처 설명
+## 7. 아키텍처 설명
 
 - **UI 구조**: 100% Jetpack Compose + Material 3. **단일 Activity, 단일 NavHost**. 화면 전환은 route가 아니라 `HomeScreen` 내부의 **탭/페이지 상태**로 처리(WholeSector ↔ Sector ↔ Cart). 다크 테마 전용, 커스텀 `ExtendedColors`/`Type`/`Spacing`.
 - **화면 계층 분리**: 각 화면 = `Page`(Compose UI) + `ViewModel` + `UiState`(화면 상태 모델) + `UiMapper`(도메인→UI 변환) + `SampleData`(프리뷰용). `HomeRoute`가 ViewModel을 소유하고, 상태를 없는(stateless) `HomeScreen`에 주입한다(상태 호이스팅).
@@ -149,7 +201,7 @@ WholeSector/Sector/Cart ViewModel ──(*UiMapper)──▶ *UiState ──(Sta
 
 ---
 
-## 6. 권한 및 외부 SDK
+## 8. 권한 및 외부 SDK
 
 ### Android 권한 목록
 
@@ -174,7 +226,7 @@ WholeSector/Sector/Cart ViewModel ──(*UiMapper)──▶ *UiState ──(Sta
 
 ---
 
-## 7. APK 빌드 방법
+## 9. APK 빌드 방법
 
 ### Debug APK
 
@@ -198,7 +250,7 @@ WholeSector/Sector/Cart ViewModel ──(*UiMapper)──▶ *UiState ──(Sta
 
 ---
 
-## 8. 테스트 설명
+## 10. 테스트 설명
 
 | 종류 | 존재 여부 | 내용 |
 | --- | --- | --- |
@@ -211,11 +263,11 @@ WholeSector/Sector/Cart ViewModel ──(*UiMapper)──▶ *UiState ──(Sta
 ./gradlew connectedDebugAndroidTest      # 계측 테스트(기기/에뮬레이터 필요)
 ```
 
-> 코어 순수 로직(매퍼/포맷/파싱/페이지네이션)은 커버되나, ViewModel·Repository 통합 및 UI/E2E 테스트는 아직 없어 확충이 필요하다(10. 기술 부채).
+> 코어 순수 로직(매퍼/포맷/파싱/페이지네이션)은 커버되나, ViewModel·Repository 통합 및 UI/E2E 테스트는 아직 없어 확충이 필요하다(12. 기술 부채).
 
 ---
 
-## 9. 문제 분석 및 디버깅 방법
+## 11. 문제 분석 및 디버깅 방법
 
 ### 주요 Logcat 태그
 
@@ -239,7 +291,7 @@ adb logcat | grep -E "AndroidRuntime|Analytics|OkHttp"          # 크래시/이�
 
 ---
 
-## 10. 기술 부채
+## 12. 기술 부채
 
 ### 리팩터링이 필요한 부분
 
@@ -258,3 +310,13 @@ adb logcat | grep -E "AndroidRuntime|Analytics|OkHttp"          # 크래시/이�
 - **지도 튜닝 값**: 마커 크기/줌 한계(`CartMinZoom`, `HeatmapMin/MaxZoom`, 마커 min/max·glow 등)는 Figma 실측 기반 상수. 실기기에서 재확인하며 조정.
 - **SDK 37**: compile/target이 최신 API에 맞춰져 있어, Android Studio/AGP/JDK 버전 요구를 함께 유지해야 함(AGP 9 → JDK 17+).
 - **로그인/로그아웃/알림**: 기획 미확정으로 보류 중(별도 브랜치). 확정 전까지 관련 UI/route는 미완성 상태.
+
+---
+
+## 13. 기여 및 컨벤션
+
+- **커밋 메시지**: [Conventional Commits](https://www.conventionalcommits.org) — `feat` / `fix` / `docs` / `refactor` / `test` / `chore` 등. 예: `fix(map): correct heatmap fit`.
+- **브랜치 전략**: GitHub Flow — `main`에서 분기 → PR로 병합. 병합은 **Squash & Merge**(PR 1개 = `main` 커밋 1개), 병합 후 브랜치는 삭제. **푸시된 히스토리는 리라이트하지 않는다.**
+- **리뷰**: PR마다 **GitHub Copilot 코드리뷰**를 요청(현재 수동 재요청)하고, **SonarQube** 품질 게이트를 확인한다(예: S107 함수 파라미터 ≤ 7, S1135 미완료 TODO 등).
+- **코드 스타일**: 주변 코드와 일관되게 작성(네이밍·주석 밀도·관용구).
+- **시크릿**: `local.properties` · `keystore.properties` · `*.jks`는 절대 커밋 금지(gitignore 유지).
