@@ -148,6 +148,9 @@ val UnitSuffixStyle = TextStyle(
     lineHeightStyle = CenteredLineHeight
 )
 
+// Card stat "cart" 유닛의 disabled(값 0) 변형 — enabled(UnitSuffixStyle)와 line-height만 다르다(140% 16.8 vs 180% 21.6).
+val UnitSuffixDisabledStyle = UnitSuffixStyle.copy(lineHeight = 16.8.sp)
+
 // M3 표준 컴포넌트(TopAppBar, Button, TextField 등)가 참조하는 Typography.
 // 실측값이 있는 역할은 위 raw 토큰을 그대로 재사용하고, 대응 값이 없는 역할은
 // Pretendard 폰트만 맞춘 임시값을 쓴다
