@@ -42,8 +42,10 @@ internal const val HeatmapMinZoom = 15f
 private const val DefaultFitZoom = HeatmapMinZoom
 // 지도 확대 "100%" 기준 줌(= 카트 추적 기본 줌 CartFollowZoom).
 internal const val MapZoom100Percent = 17f
-// 히트맵(FitGeofence) 확대 최대 줌 = 디자인 "100%". 마커는 60%에서 캡되므로 이 값은 지도 디테일/이동 범위만 결정.
-// 60% 사이즈에 도달하되 과확대되지 않게 카트 100%(17)보다 조금 높게. TODO: 실기기에서 디자인 100%에 맞춰 튜닝.
+// 히트맵(FitGeofence) 확대 최대 줌. 마커 크기는 GeofenceMapOverlay에서 60%로 독립적으로 캡되므로,
+// 이 값은 마커가 아니라 지도 타일 디테일/이동(pan) 범위의 상한만 결정한다. 그래서 디자인 "100%"에
+// 픽셀 단위로 맞출 필요는 없고, 마커가 60%에 도달하면서 과확대되지 않는 상한으로 카트 100%(17)보다
+// 한 단계 높은 19로 확정한다.
 internal const val HeatmapMaxZoom = 19f
 // 카트 재중심 판단 오차(위경도 합). 이보다 벗어나면 카트로 다시 중심 이동.
 private const val CenterEpsilon = 1e-6
