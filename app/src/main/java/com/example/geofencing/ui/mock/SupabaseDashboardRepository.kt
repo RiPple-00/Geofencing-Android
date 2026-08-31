@@ -94,10 +94,7 @@ class SupabaseDashboardRepository @Inject constructor(
             .mapValues { (_, evs) -> evs.maxByOrNull { parseInstant(it.occurredAt) ?: Instant.MIN }!! }
 
         return sectors.map { sector ->
-            // GeoJSON 외곽 링 → LatLng. [lng,lat] 순서 뒤집고, 닫힘점(첫=마지막) 제거.
-            val geofence = sector.geofence.coordinates.firstOrNull().orEmpty()
-                .map { LatLng(it[1], it[0]) }
-                .let { ring -> if (ring.size > 1 && ring.first() == ring.last()) ring.dropLast(1) else ring }
+            val geofence = geoJsonRingToLatLng(sector.geofence.coordinates)
             val sectorCarts = cartsBySector[sector.id].orEmpty()
             val violationPoints = eventsBySector[sector.id].orEmpty()
                 .map { LatLng(it.location.coordinates[1], it.location.coordinates[0]) }
@@ -173,21 +170,30 @@ class SupabaseDashboardRepository @Inject constructor(
         }
     }
 
-    // "8m 45s" 또는 1시간 이상이면 "2h 05m" 형식.
-    private fun formatDuration(elapsed: Duration): String {
-        val seconds = elapsed.seconds.coerceAtLeast(0)
-        val hours = seconds / 3600
-        val minutes = (seconds % 3600) / 60
-        val secs = seconds % 60
-        return if (hours > 0) "%dh %02dm".format(hours, minutes) else "%dm %02ds".format(minutes, secs)
-    }
-
-    private fun parseInstant(value: String): Instant? = runCatching {
-        OffsetDateTime.parse(value).toInstant()
-    }.recoverCatching { Instant.parse(value) }.getOrNull()
-
     private companion object {
         val timeFormatter: DateTimeFormatter =
             DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm:ss").withZone(ZoneId.systemDefault())
     }
+}
+
+// GeoJSON Polygon 외곽 링(coordinates[0]) → LatLng. GeoJSON은 [lng,lat] 순서라 뒤집고,
+// 닫힘점(첫=마지막)은 제거한다. 링이 없거나 점이 1개면 그대로. (top-level: 단위 테스트 대상)
+internal fun geoJsonRingToLatLng(coordinates: List<List<List<Double>>>): List<LatLng> {
+    val ring = coordinates.firstOrNull().orEmpty().map { LatLng(it[1], it[0]) }
+    return if (ring.size > 1 && ring.first() == ring.last()) ring.dropLast(1) else ring
+}
+
+// 이벤트 시각 파싱: 오프셋 포함(OffsetDateTime) 우선, 실패 시 UTC Instant, 그래도 안 되면 null.
+internal fun parseInstant(value: String): Instant? = runCatching {
+    OffsetDateTime.parse(value).toInstant()
+}.recoverCatching { Instant.parse(value) }.getOrNull()
+
+// 위반 지속시간 포맷: "8m 45s", 1시간 이상이면 "2h 05m". 음수(시계 오차 등)는 0으로 보정.
+// top-level(internal)로 두어 순수 함수로 단위 테스트한다. (경과시간 = now - occurred_at)
+internal fun formatDuration(elapsed: Duration): String {
+    val seconds = elapsed.seconds.coerceAtLeast(0)
+    val hours = seconds / 3600
+    val minutes = (seconds % 3600) / 60
+    val secs = seconds % 60
+    return if (hours > 0) "%dh %02dm".format(hours, minutes) else "%dm %02ds".format(minutes, secs)
 }
