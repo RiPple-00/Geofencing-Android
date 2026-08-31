@@ -1,8 +1,18 @@
 # Geofencing Android
 
-> 골프카트 지오펜싱/모니터링 Android 앱. **Site → Sector → Cart** 계층으로 카트의 위반(Violation)·연결끊김(Disconnect) 상태를 지도와 리스트로 모니터링한다. Jetpack Compose 기반.
+**골프카트 모니터링 Android 앱.** 골프카트는 주기적으로 위치/상태를 서버(BE)에 전송하고, BE는 이를 집계해 **사이트/섹터 현황**과 **지오펜스 이탈 이벤트**를 앱에 제공한다. 앱은 이를 **지도와 리스트**로 보여준다. (Jetpack Compose)
+
+```
+┌─────────┐     REST API      ┌─────────┐      집계       ┌───────────┐
+│   App   │ ◄──────────────►  │   BE    │ ◄────────────── │ Golf Cart │
+└─────────┘  App 요청·BE 응답  └─────────┘  주기 위치/상태  └───────────┘
+     │
+ 지도·리스트로 표시
+```
+
+> ℹ️ **현재 백엔드** — 팀 REST BE는 준비 중이라, 임시로 **Supabase(PostgREST)** 가 같은 역할을 대신한다(목 데이터). 현재 화면은 Supabase 응답을 `DashboardRepository` 계약에 맞춰 조립해 구동하며, 팀 REST BE 도입 시 Repository 구현과 필드 계약을 맞춰 교체해야 한다. (자세히는 7·12장)
 >
-> 개발/온보딩용 상세 문서. 세부 버전 값은 `app/build.gradle.kts` · `gradle/libs.versions.toml` 기준.
+> ℹ️ **읽는 순서(추천)** — 개요 → **§4 기능·화면** → **§5 도메인 용어**로 큰 그림을 잡고, 환경/실행은 §2~3, 코드 구조는 §6~7을 본다. 버전 등 세부 값은 `app/build.gradle.kts`·`gradle/libs.versions.toml` 기준.
 
 ---
 
@@ -13,9 +23,9 @@
 | App 이름 | `geofencing` (`res/values/strings.xml`의 `app_name`) |
 | Package name / applicationId | `com.example.geofencing` |
 | versionName / versionCode | `1.0` / `1` (`app/build.gradle.kts`) |
-| 배포 APK 파일명 | `geofence_v1.2.apk` (Release 서명) |
+| Release APK 산출물 | `app/build/outputs/apk/release/app-release.apk` |
 
-> ⚠️ **버전 불일치 주의**: 배포 파일명은 `v1.2`이지만 앱 내부 `versionName`은 아직 `1.0`이다. 스토어 배포/업데이트 식별이 필요해지면 `versionName`/`versionCode`를 올려야 한다. (아래 10. 기술 부채 참고)
+> ⚠️ 외부 배포/스토어 업로드가 필요해지면 `versionName`/`versionCode` 갱신 규칙과 배포 파일명 규칙을 함께 정해야 한다. 현재 Gradle 설정은 별도 파일명 변경 없이 기본 산출물명을 사용한다.
 
 ---
 
@@ -31,21 +41,26 @@
 | Compose | BOM 2026.02.01, Material 3 |
 | compileSdk / minSdk / targetSdk | 37 / 26 / 37 |
 
+> ⚠️ `gradle.properties`의 `org.gradle.java.home`은 macOS Android Studio 기본 설치 경로를 가리킨다. Android Studio 설치 위치가 다르면 이 값을 로컬 환경에 맞게 수정하거나 IDE Gradle JVM 설정으로 덮어쓴다.
+
 ### 로컬 설정 파일
 
 모두 **gitignore** 대상이며, `*.example` 템플릿을 복사해 채운다.
 
 | 파일 | 용도 | 주요 키 |
 | --- | --- | --- |
-| `local.properties` | SDK 경로 + 시크릿. `local.properties.example` 복사. | `sdk.dir`, `MAPS_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, (선택) `BASE_URL` |
+| `local.properties` | SDK 경로 + 시크릿. `local.properties.example` 복사. | `sdk.dir`, `MAPS_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, (선택, 필요 시 직접 추가) `BASE_URL` |
 | `keystore.properties` | Release 서명 정보. `keystore.properties.example` 복사. | `storeFile`, `storePassword`, `keyAlias`, `keyPassword` |
 
 - `.env` / `secrets.properties`는 **사용하지 않는다.** 모든 시크릿은 `local.properties` → `BuildConfig`/`manifestPlaceholders`로 주입된다.
-- Supabase는 **anon(publishable) key만** 넣는다. DB password / `service_role` key는 절대 커밋·기입 금지.
+
+> 🔒 Supabase는 **anon(publishable) key만** 넣는다. DB password / `service_role` key는 절대 커밋·기입 금지.
 
 ---
 
 ## 3. 실행 방법
+
+> ℹ️ **한눈에** — `local.properties`에 Maps 키 + Supabase 키만 채우면 바로 **Run ▶** 으로 실행된다. 팀 REST BE 없이도 동작한다(현행 백엔드 = Supabase).
 
 ### 로컬에서 Debug 실행
 
@@ -74,7 +89,79 @@
 
 ---
 
-## 4. 프로젝트 구조
+## 4. 기능 및 화면 개요
+
+앱은 **Whole Sector → Sector → Cart** 3단계 드릴다운으로 구성된다. 상단 크롬(상단바 + 섹터 탭)은 `HomeScreen`이 공통 제공한다.
+
+```
+[ Whole Sector ]  사이트 전체 요약 · Violation/Disconnect 리스트 · Sector 카드
+       │  섹터 탭·카드 선택
+       ▼
+[ Sector ]  섹터 지도 배너 · Violation Heatmap · Violation/Disconnect/All Cart 리스트
+       │  카트 행 선택
+       ▼
+[ Cart ]  카트 상세(상태·주행·위반 정보) · 카트 추적 지도
+```
+
+| 화면 | 내용 | 이동 |
+| --- | --- | --- |
+| **Whole Sector** (Main) | 사이트 전체 요약(총 카트 + Compliance/Violation/Disconnect 카운트), Violation·Disconnect 카트 리스트, Sector 카드 목록(지도 썸네일) | 섹터 탭/카드 → Sector · 카트 행 → Cart |
+| **Sector** | 섹터 지도 배너(지오펜스 + 카트 마커), **Violation Heatmap**(라벨 탭=팝업, ⤢=전체화면 줌 지도), Violation·Disconnect·All Cart 리스트(페이지네이션) | 카트 행 → Cart |
+| **Cart** | 선택 카트 상세(상태·주행상태·등록ID·타임스탬프, 위반 시 지속시간/최고속도/시각/주소) + 카트 추적 지도 | 뒤로 → Sector |
+
+- **지도 모드**: 섹터 카드 썸네일 / 배너 / 전체화면(히트맵·카트 추적). 마커 = 카트(상태 색), 뒤 glow = 위반 강조. 마커/줌 상수는 Figma 실측 기반(`MapConfig` 등).
+- **상태 표현**: 로딩 / 에러(재시도) / 성공을 `LoadStateContent`가 분기.
+
+> ℹ️ **보류(기획 미확정)** — 로그인·로그아웃, 알림. 검색은 `ui/map`에 UI 컴포넌트와 REST API 골격이 일부 있으나, 현재 메인 화면 흐름에는 연결되어 있지 않다.
+
+---
+
+## 5. 도메인 용어 및 데이터 규약
+
+### 계층 · 용어
+
+```
+Site (고객사, 예: "Golfzon County")
+ └─ Sector (골프장 1곳, 지오펜스 폴리곤)
+     └─ Cart (골프카트, 주기적 위치/상태 전송)
+```
+
+| 용어 | 설명 |
+| --- | --- |
+| **Site** | 고객사. 여러 Sector 보유 |
+| **Sector** | 골프장 1곳. 지오펜스 폴리곤 경계를 가짐 |
+| **Cart** | 골프카트 1대. 특정 Sector 소속, 주기적으로 위치/상태 전송 |
+| **GeofenceEvent** | 카트가 소속 Sector 지오펜스를 벗어날 때 발생하는 이탈 이벤트 |
+
+### 상태 enum
+
+**`geofenceStatus`** — 카트의 지오펜스 상태:
+
+| 값 | 의미 | 비고 |
+| --- | --- | --- |
+| `violating` | 지오펜스 이탈 | 실 API 계약값 |
+| `compliant` | 정상(경계 내부) | 실 API 계약값 |
+| `disconnected` | 통신 끊김 | **현행 대시보드(Supabase)만.** 팀 REST DTO(`data/remote/dto`)엔 아직 없음 |
+
+**`drivingStatus`** — 주행 여부: `driving` · `idle`.
+
+> ⚠️ 팀 REST DTO는 현재 `violating`/`compliant` 중심이다. 팀 BE로 전환할 때 `disconnected`·카트 위치·위반 상세 필드 계약을 맞춰야 한다. (→ 12장)
+
+### 좌표 규약 (GeoJSON)
+
+- 모든 좌표는 GeoJSON. **Point**(단일 위치)와 **Polygon**(지오펜스 경계) 두 형태만 쓴다.
+
+> ⚠️ **`[lng, lat]` — 경도가 먼저다.** "위도, 경도" 직관과 반대이며, GeoJSON 버그 대부분이 여기서 발생한다. Android 변환은 `LatLng(coordinates[1], coordinates[0])`.
+>
+> ⚠️ **Polygon 링은 첫 점 = 마지막 점으로 닫힌다.** 외곽 링(`coordinates[0]`) 하나만 사용하며, 지도에 그릴 땐 닫힘점을 제거한다(`geoJsonRingToLatLng`가 처리).
+
+### 시간
+
+- 모든 시각은 **ISO 8601** 문자열로 교환한다. UTC `Z` 형식(예: `2026-07-07T05:12:33Z`)과 offset 포함 형식(예: `2026-07-07T14:12:33+09:00`)을 파싱하며, 로컬(KST) 변환·표시는 App이 담당한다.
+
+---
+
+## 6. 프로젝트 구조
 
 ```
 app/src/main/java/com/example/geofencing
@@ -95,7 +182,7 @@ app/src/main/java/com/example/geofencing
 ├── util/                        # PoleOfInaccessibility 등 공용 유틸
 └── ui/
     ├── navigation/                # GeofencingNavHost (현재 단일 "main" route)
-    ├── home/                      # HomeRoute(ViewModel 소유·배선) + HomeScreen(상태 없는 탭 컨테이너)
+    ├── home/                      # HomeRoute(ViewModel 소유·배선) + HomeScreen(ViewModel 없는 탭/드릴다운 컨테이너)
     ├── dashboard/                 # DashboardRepository(계약+MockDashboardRepository) · SupabaseDashboardRepository(현행) · DashboardModels · DashboardSampleData
     ├── wholesector/ · sector/ · cart/   # 화면별 Page + ViewModel + UiState + UiMapper + SampleData
     ├── map/                       # LiveGeofenceMap, GeofenceMapOverlay, 히트맵, SectorSnapshot(+Cache/Models), MapConfig, 검색
@@ -112,14 +199,14 @@ app/src/main/java/com/example/geofencing
 | `MainActivity` | 단일 Activity. `GeofencingNavHost`를 `setContent`로 표시. |
 | `GeofencingNavHost` | Navigation Compose. 현재는 `main` 한 개 route(로그인/로딩 화면은 TODO). |
 | `HomeRoute` | route 계층. `hiltViewModel()`로 세 ViewModel을 소유하고 상태/콜백(`HomeActions`)을 `HomeScreen`에 주입. |
-| `HomeScreen` | **상태 없는(stateless)** 컨테이너. 상단바 + 섹터 탭(`SectorTabRow`) + 페이지 전환(WholeSector/Sector/Cart). |
+| `HomeScreen` | ViewModel을 직접 소유하지 않는 컨테이너. 상단바 + 섹터 탭(`SectorTabRow`) + 페이지 전환(WholeSector/Sector/Cart)을 담당하며, 탭/드릴다운/지도 오버레이 같은 로컬 UI 상태는 내부에서 관리한다. |
 | `WholeSectorViewModel` / `SectorViewModel` / `CartViewModel` | 각 화면의 `@HiltViewModel`. `DashboardRepository`를 관찰하고 `*UiMapper`로 변환해 `StateFlow<LoadState<*UiState>>` 노출. |
 | `*UiState` / `*UiMapper` | 화면별 상태 모델과 도메인(`DashboardSector`)→UI 변환 로직. Compose에서 분리되어 단위 테스트 가능. |
 | `DashboardRepository` (`ui/dashboard`) | 대시보드 데이터 계약(`observeSectors/observeSector/observeCart/refresh`). `MockDashboardRepository`(로컬 목) 구현 병존. |
 | `SupabaseDashboardRepository` (`ui/dashboard`) | **현행 구현.** Supabase(PostgREST)에서 섹터/카트/이벤트를 읽어 `DashboardSector`로 조립, `LoadState`로 흘려보냄. |
 | `LiveGeofenceMap` | GoogleMap(카메라: 카트 추적 `FollowCart` / 지오펜스 맞춤 `FitGeofence`) 위에 `GeofenceMapOverlay`(Canvas 마커/글로우/라벨)를 라이브 projection으로 겹침. |
 
-### 화면 / ViewModel / Repository / API 구조
+### 데이터 흐름 (화면 / ViewModel / Repository)
 
 ```
 Supabase (PostgREST, 임시 BE)
@@ -135,10 +222,10 @@ WholeSector/Sector/Cart ViewModel ──(*UiMapper)──▶ *UiState ──(Sta
 
 ---
 
-## 5. 아키텍처 설명
+## 7. 아키텍처 설명
 
-- **UI 구조**: 100% Jetpack Compose + Material 3. **단일 Activity, 단일 NavHost**. 화면 전환은 route가 아니라 `HomeScreen` 내부의 **탭/페이지 상태**로 처리(WholeSector ↔ Sector ↔ Cart). 다크 테마 전용, 커스텀 `ExtendedColors`/`Type`/`Spacing`.
-- **화면 계층 분리**: 각 화면 = `Page`(Compose UI) + `ViewModel` + `UiState`(화면 상태 모델) + `UiMapper`(도메인→UI 변환) + `SampleData`(프리뷰용). `HomeRoute`가 ViewModel을 소유하고, 상태를 없는(stateless) `HomeScreen`에 주입한다(상태 호이스팅).
+- **UI 구조**: 100% Jetpack Compose + Material 3. **단일 Activity, 단일 NavHost**. 화면 전환은 route가 아니라 `HomeScreen` 내부의 **탭/페이지 상태**로 처리(WholeSector ↔ Sector ↔ Cart). Light/Dark 컬러 토큰은 모두 정의되어 있으나, 현재 앱은 `GeofencingTheme(darkTheme = true)` 기본값으로 다크 테마를 사용한다. 커스텀 `ExtendedColors`/`Type`/`Spacing` 적용.
+- **화면 계층 분리**: 각 화면 = `Page`(Compose UI) + `ViewModel` + `UiState`(화면 상태 모델) + `UiMapper`(도메인→UI 변환) + `SampleData`(프리뷰용). `HomeRoute`가 ViewModel을 소유하고 `HomeScreen`에 화면 상태와 `HomeActions`를 주입한다. `HomeScreen`은 ViewModel 상태를 받되, 탭/드릴다운/지도 오버레이 같은 화면 컨테이너 UI 상태는 직접 관리한다.
 - **ViewModel 사용 방식**: `HomeRoute`가 `hiltViewModel()`로 주입, ViewModel은 Repository의 `Flow`를 `*UiMapper`로 `map`해 `stateIn(viewModelScope, WhileSubscribed(5s), Loading)`으로 화면 상태를 만든다. UI는 `collectAsState()`로 구독. 재시도는 `retry()` → `repository.refresh()`.
 - **Repository 구조**: 계약(interface)과 구현(Impl) 분리, Hilt `@Binds`로 연결. **두 계층**이 공존한다.
   - `ui/dashboard`의 `DashboardRepository` → **현행** `SupabaseDashboardRepository`(임시 Supabase 백엔드)가 실제 화면을 구동. `MockDashboardRepository`(로컬 목)도 있음.
@@ -149,7 +236,7 @@ WholeSector/Sector/Cart ViewModel ──(*UiMapper)──▶ *UiState ──(Sta
 
 ---
 
-## 6. 권한 및 외부 SDK
+## 8. 권한 및 외부 SDK
 
 ### Android 권한 목록
 
@@ -157,8 +244,9 @@ WholeSector/Sector/Cart ViewModel ──(*UiMapper)──▶ *UiState ──(Sta
 | --- | --- |
 | `android.permission.INTERNET` | 지도 타일, Supabase/REST API 통신 |
 
-> 위치(`ACCESS_FINE_LOCATION` 등) 권한은 사용하지 않는다 — 카트 위치는 서버에서 받아 표시하며, 기기 GPS를 쓰지 않는다.
-> Debug 빌드는 `usesCleartextTraffic="true"`(로컬 HTTP BE 테스트용), Release는 `"false"`.
+> ℹ️ 위치(`ACCESS_FINE_LOCATION` 등) 권한은 사용하지 않는다 — 카트 위치는 서버에서 받아 표시하며, 기기 GPS를 쓰지 않는다.
+>
+> ℹ️ Debug 빌드는 `app/src/debug/AndroidManifest.xml`에서 `usesCleartextTraffic="true"`로 덮어쓰고(로컬 HTTP BE 테스트용), Release/main manifest는 `"false"`다.
 
 ### 주요 외부 SDK / 라이브러리
 
@@ -174,7 +262,7 @@ WholeSector/Sector/Cart ViewModel ──(*UiMapper)──▶ *UiState ──(Sta
 
 ---
 
-## 7. APK 빌드 방법
+## 9. APK 빌드 방법
 
 ### Debug APK
 
@@ -191,14 +279,16 @@ WholeSector/Sector/Cart ViewModel ──(*UiMapper)──▶ *UiState ──(Sta
    ./gradlew assembleRelease
    # 산출물: app/build/outputs/apk/release/app-release.apk
    ```
+
 - `keystore.properties`의 4개 값이 모두 채워지고 keystore 파일이 실제 존재하면 **릴리스 키로 서명**된다. 하나라도 빠지면(예: 시크릿 없는 CI) 서명 없이 빌드되어 빌드 자체는 실패하지 않는다(`hasReleaseSigning` 로직).
-- 서명 검증: `apksigner verify app-release.apk`.
-- Release 지도가 안 보이면: 릴리스 keystore의 **SHA-1**을 Google Cloud Console의 Maps 키에 등록. Debug↔Release 서명 충돌 시 기존 앱 삭제 후 재설치.
+- 서명 검증: `apksigner verify app/build/outputs/apk/release/app-release.apk`.
 - `isMinifyEnabled = false` (현재 R8 미적용). ProGuard 규칙은 `app/proguard-rules.pro`.
+
+> ⚠️ **Release 지도가 안 보이면** 릴리스 keystore의 **SHA-1**을 Google Cloud Console의 Maps 키에 등록한다. Debug↔Release 서명 충돌 시 기존 앱 삭제 후 재설치.
 
 ---
 
-## 8. 테스트 설명
+## 10. 테스트 설명
 
 | 종류 | 존재 여부 | 내용 |
 | --- | --- | --- |
@@ -211,40 +301,44 @@ WholeSector/Sector/Cart ViewModel ──(*UiMapper)──▶ *UiState ──(Sta
 ./gradlew connectedDebugAndroidTest      # 계측 테스트(기기/에뮬레이터 필요)
 ```
 
-> 코어 순수 로직(매퍼/포맷/파싱/페이지네이션)은 커버되나, ViewModel·Repository 통합 및 UI/E2E 테스트는 아직 없어 확충이 필요하다(10. 기술 부채).
+> ℹ️ 코어 순수 로직(매퍼/포맷/파싱/페이지네이션)은 커버되나, ViewModel·Repository 통합 및 UI/E2E 테스트는 아직 없어 확충이 필요하다. (→ 12장)
 
 ---
 
-## 9. 문제 분석 및 디버깅 방법
+## 11. 문제 분석 및 디버깅 방법
 
 ### 주요 Logcat 태그
 
 | 태그 | 출처 | 내용 |
 | --- | --- | --- |
 | `Analytics` | `DebugAnalyticsLogger` | 화면 진입/이벤트 로그(`screen: ...`, `event: ...`). 임시 구현 — 실제 전송 대신 Logcat에만 출력. |
-| `OkHttp` | OkHttp `HttpLoggingInterceptor` | HTTP 요청/응답 로그(Supabase/REST 통신 디버깅). |
+| `OkHttp`/`okhttp3.*` | OkHttp `HttpLoggingInterceptor`(기본 로거) | HTTP 요청/응답 로그. **Debug만 BODY 레벨**, Release는 출력 없음. |
 | `AndroidRuntime` | 시스템 | `FATAL EXCEPTION` — 앱 크래시 스택트레이스. |
 
 ### 앱 실행 오류 확인 방법
 
 ```bash
 adb logcat --pid=$(adb shell pidof com.example.geofencing)      # 앱 프로세스 로그만
-adb logcat *:E                                                  # 에러 레벨만
-adb logcat | grep -E "AndroidRuntime|Analytics|OkHttp"          # 크래시/이벤트/HTTP
+adb logcat '*:E'                                                # 에러 레벨만
+adb logcat | grep -Ei "AndroidRuntime|Analytics|okhttp"         # 크래시/이벤트/HTTP
 ```
 
-- **지도가 빈 화면**: `MAPS_API_KEY` 누락 또는 (Release) SHA-1 미등록. `local.properties`/Cloud Console 확인.
-- **데이터 안 뜸**: `SUPABASE_URL`/`SUPABASE_ANON_KEY` 확인, `OkHttp` 로그로 응답 코드 점검. UI는 `LoadState.Error`로 재시도 노출.
-- **설치 실패("패키지가 잘못되어")**: Debug↔Release 서명 충돌. 기존 앱 삭제 후 재설치.
+**자주 겪는 증상**
+
+| 증상 | 원인 · 확인 |
+| --- | --- |
+| 지도가 빈 화면 | `MAPS_API_KEY` 누락 또는 (Release) SHA-1 미등록. `local.properties`/Cloud Console 확인 |
+| 데이터가 안 뜸 | `SUPABASE_URL`/`SUPABASE_ANON_KEY` 확인, `OkHttp` 로그로 응답 코드 점검. UI는 `LoadState.Error`로 재시도 노출 |
+| 설치 실패("패키지가 잘못되어") | Debug↔Release 서명 충돌. 기존 앱 삭제 후 재설치 |
 
 ---
 
-## 10. 기술 부채
+## 12. 기술 부채
 
 ### 리팩터링이 필요한 부분
 
 - **`applicationId`가 기본값 `com.example.geofencing`** — 실배포 전 실제 도메인 기반 ID로 변경 필요.
-- **버전 관리**: `versionName`이 배포 파일명(v1.2)과 불일치(1.0 고정). 릴리스 프로세스에서 버전 자동/수동 갱신 규칙 필요.
+- **버전 관리**: `versionName`/`versionCode`가 `1.0`/`1`로 고정되어 있다. 릴리스 프로세스에서 버전 자동/수동 갱신 규칙과 필요 시 APK 파일명 규칙을 정해야 한다.
 - **데이터 레이어 이원화**: `ui/dashboard`의 Supabase 경로가 실제 화면을 구동하고, `data/`의 Retrofit 계층은 팀 REST BE 대비로 병존. 팀 BE 확정 시 `DashboardRepository` 구현을 교체하고 `data/`로 일원화 필요.
 - **네비게이션**: NavHost route가 `main` 하나뿐이고 화면 전환이 `HomeScreen` 내부 상태에 묶여 있음. 로그인/로딩 화면 도입 시 route 기반으로 재정비 필요(코드 내 TODO).
 - **Analytics**: `DebugAnalyticsLogger`는 Logcat 출력 스캐폴딩. 실제 수집 필요 시 실 구현체로 `@Binds` 교체.
@@ -254,7 +348,18 @@ adb logcat | grep -E "AndroidRuntime|Analytics|OkHttp"          # 크래시/이�
 
 - **시크릿 관리**: `local.properties`, `keystore.properties`, `*.jks`는 절대 커밋 금지(gitignore 유지). Supabase는 anon key만 사용, `service_role`/DB password 금지.
 - **임시 백엔드 전제**: 현재 Supabase는 인터임(interim). 스키마/목데이터는 `supabase/schema.sql` 단일 파일로 관리(신규 프로젝트에 한 번 실행).
-- **목 데이터 vs 실 API 격차**: 초기(7월) 팀 REST API는 `geofenceStatus`가 `violating`/`compliant`뿐이다. 앱의 **Disconnect 상태·카트 위치(lat/lng)·위반 상세(속도/주소)는 이 계약에 없는 목(mock) 실험 기능**이므로, 실 BE 연동 시 이 차이를 조정해야 한다.
+- **현행 Supabase vs 팀 REST 계약 격차**: 대시보드 UI는 현재 Supabase 스키마의 `disconnected`, 카트 위치(`lat`/`lng`), 위반 상세(`max_speed`/`address`)를 사용한다. 반면 팀 REST DTO는 아직 `violating`/`compliant` 중심이므로, 팀 BE 전환 시 필드 계약을 맞춰야 한다.
 - **지도 튜닝 값**: 마커 크기/줌 한계(`CartMinZoom`, `HeatmapMin/MaxZoom`, 마커 min/max·glow 등)는 Figma 실측 기반 상수. 실기기에서 재확인하며 조정.
 - **SDK 37**: compile/target이 최신 API에 맞춰져 있어, Android Studio/AGP/JDK 버전 요구를 함께 유지해야 함(AGP 9 → JDK 17+).
-- **로그인/로그아웃/알림**: 기획 미확정으로 보류 중(별도 브랜치). 확정 전까지 관련 UI/route는 미완성 상태.
+- **CI/정적 분석 자동화**: 현재 repo에는 `.github/workflows`, SonarQube, detekt/ktlint 설정이 없다. 자동화 전까지는 PR 전 로컬 `./gradlew test`와 수동 리뷰로 확인한다.
+- **로그인/로그아웃/알림/검색 연결**: 기획 미확정 또는 메인 흐름 미연결 상태. 확정 전까지 관련 UI/route는 미완성 상태.
+
+---
+
+## 13. 기여 및 컨벤션
+
+- **커밋 메시지**: [Conventional Commits](https://www.conventionalcommits.org) — `feat` / `fix` / `docs` / `refactor` / `test` / `chore` 등. 예: `fix(map): correct heatmap fit`.
+- **브랜치 전략**: GitHub Flow — `main`에서 분기 → PR로 병합. 병합은 **Squash & Merge**(PR 1개 = `main` 커밋 1개), 병합 후 브랜치는 삭제. **푸시된 히스토리는 리라이트하지 않는다.**
+- **리뷰/검증**: `.github/pull_request_template.md`를 채우고, PR 전 `./gradlew test`를 실행한다. Copilot 리뷰나 SonarQube는 repo 자동화가 아니라 팀에서 별도로 사용하는 경우 수동으로 확인한다.
+- **코드 스타일**: 주변 코드와 일관되게 작성(네이밍·주석 밀도·관용구).
+- **시크릿**: `local.properties` · `keystore.properties` · `*.jks`는 절대 커밋 금지(gitignore 유지).
