@@ -1,16 +1,16 @@
 # Geofencing Android
 
-**골프카트 모니터링 Android 앱.** 골프카트는 10초 간격으로 위치/상태를 서버(BE)에 전송하고, BE는 이를 집계해 **사이트/섹터 현황**과 **지오펜스 이탈 이벤트**를 앱에 제공한다. 앱은 이를 **지도와 리스트**로 보여준다. (Jetpack Compose)
+**골프카트 모니터링 Android 앱.** 골프카트는 주기적으로 위치/상태를 서버(BE)에 전송하고, BE는 이를 집계해 **사이트/섹터 현황**과 **지오펜스 이탈 이벤트**를 앱에 제공한다. 앱은 이를 **지도와 리스트**로 보여준다. (Jetpack Compose)
 
 ```
 ┌─────────┐     REST API      ┌─────────┐      집계       ┌───────────┐
 │   App   │ ◄──────────────►  │   BE    │ ◄────────────── │ Golf Cart │
-└─────────┘  App 요청·BE 응답  └─────────┘  10초 위치/상태  └───────────┘
+└─────────┘  App 요청·BE 응답  └─────────┘  주기 위치/상태  └───────────┘
      │
  지도·리스트로 표시
 ```
 
-> ℹ️ **현재 백엔드** — 팀 REST BE는 준비 중이라, 임시로 **Supabase(PostgREST)** 가 같은 역할을 대신한다(목 데이터). 앱은 실 API와 동일한 방식으로 매핑하므로 나중에 교체만 하면 된다. (자세히는 7·12장)
+> ℹ️ **현재 백엔드** — 팀 REST BE는 준비 중이라, 임시로 **Supabase(PostgREST)** 가 같은 역할을 대신한다(목 데이터). 현재 화면은 Supabase 응답을 `DashboardRepository` 계약에 맞춰 조립해 구동하며, 팀 REST BE 도입 시 Repository 구현과 필드 계약을 맞춰 교체해야 한다. (자세히는 7·12장)
 >
 > ℹ️ **읽는 순서(추천)** — 개요 → **§4 기능·화면** → **§5 도메인 용어**로 큰 그림을 잡고, 환경/실행은 §2~3, 코드 구조는 §6~7을 본다. 버전 등 세부 값은 `app/build.gradle.kts`·`gradle/libs.versions.toml` 기준.
 
@@ -123,14 +123,14 @@
 ```
 Site (고객사, 예: "Golfzon County")
  └─ Sector (골프장 1곳, 지오펜스 폴리곤)
-     └─ Cart (골프카트, 10초 간격 위치/상태 전송)
+     └─ Cart (골프카트, 주기적 위치/상태 전송)
 ```
 
 | 용어 | 설명 |
 | --- | --- |
 | **Site** | 고객사. 여러 Sector 보유 |
 | **Sector** | 골프장 1곳. 지오펜스 폴리곤 경계를 가짐 |
-| **Cart** | 골프카트 1대. 특정 Sector 소속, 10초 간격으로 위치/상태 전송 |
+| **Cart** | 골프카트 1대. 특정 Sector 소속, 주기적으로 위치/상태 전송 |
 | **GeofenceEvent** | 카트가 소속 Sector 지오펜스를 벗어날 때 발생하는 이탈 이벤트 |
 
 ### 상태 enum
@@ -312,7 +312,7 @@ WholeSector/Sector/Cart ViewModel ──(*UiMapper)──▶ *UiState ──(Sta
 | 태그 | 출처 | 내용 |
 | --- | --- | --- |
 | `Analytics` | `DebugAnalyticsLogger` | 화면 진입/이벤트 로그(`screen: ...`, `event: ...`). 임시 구현 — 실제 전송 대신 Logcat에만 출력. |
-| `okhttp3.OkHttpClient` | OkHttp `HttpLoggingInterceptor`(기본 로거) | HTTP 요청/응답 로그. **Debug만 BODY 레벨**, Release는 출력 없음. |
+| `OkHttp`/`okhttp3.*` | OkHttp `HttpLoggingInterceptor`(기본 로거) | HTTP 요청/응답 로그. **Debug만 BODY 레벨**, Release는 출력 없음. |
 | `AndroidRuntime` | 시스템 | `FATAL EXCEPTION` — 앱 크래시 스택트레이스. |
 
 ### 앱 실행 오류 확인 방법
@@ -320,7 +320,7 @@ WholeSector/Sector/Cart ViewModel ──(*UiMapper)──▶ *UiState ──(Sta
 ```bash
 adb logcat --pid=$(adb shell pidof com.example.geofencing)      # 앱 프로세스 로그만
 adb logcat '*:E'                                                # 에러 레벨만
-adb logcat | grep -E "AndroidRuntime|Analytics|OkHttp"          # 크래시/이벤트/HTTP
+adb logcat | grep -Ei "AndroidRuntime|Analytics|okhttp"         # 크래시/이벤트/HTTP
 ```
 
 **자주 겪는 증상**
