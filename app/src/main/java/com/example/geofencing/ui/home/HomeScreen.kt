@@ -48,8 +48,8 @@ import com.example.geofencing.ui.wholesector.WholeSectorUiState
 private const val APP_TITLE = "Geofence"
 // 배너 라이브 지도에서 geofence 가장자리 여백(dp) — FitGeofence padding.
 private const val SectorMapGeofenceMarginDp = 45
-// 히트맵 오버레이 지도 추가 확대 배율.
-private const val HeatmapZoomFactor = 1.1f
+// 히트맵 지도에서 geofence 가장자리 최소 여백(dp) — FitGeofence padding. 배너(45)보다 좁아 더 크게 보임.
+private const val HeatmapGeofenceMarginDp = 15
 
 // 탭 셸: AppTopBar + SectorTabRow(크롬) + body. 크롬은 항상 유지되고, body는:
 // - 드릴다운으로 열린 카트가 있으면 CartPage (뒤로가기로 닫음)
@@ -135,7 +135,7 @@ fun HomeScreen(
     val sectorMapContent = (sectorState as? LoadState.Success)?.data
         ?.let { GeofenceMapContent(geofence = it.geofence, carts = it.carts) }
     val bannerCamera = MapCamera.FitGeofence(paddingDp = SectorMapGeofenceMarginDp)
-    val heatmapCamera = MapCamera.FitGeofence(zoomFactor = HeatmapZoomFactor)
+    val heatmapCamera = MapCamera.FitGeofence(paddingDp = HeatmapGeofenceMarginDp)
 
     // 드릴다운 진입 지점(from)까지 기록하는 공통 경로.
     val openCart: (String, String, String) -> Unit = { sector, cart, from ->
