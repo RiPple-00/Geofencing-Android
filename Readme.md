@@ -92,23 +92,24 @@
 
 ## 4. 기능 및 화면 개요
 
-앱은 **Whole Sector → Sector → Cart** 3단계 드릴다운으로 구성된다. 상단 크롬(상단바 + 섹터 탭)은 `HomeScreen`이 공통 제공한다.
+최상위는 **Whole Sector**와 **Sector**로, 상단 탭바로 자유롭게 오간다. 두 화면 모두 카트 행에서 **Cart** 상세로 드릴다운한다. 상단 크롬(상단바 + 섹터 탭)은 `HomeScreen`이 공통 제공한다.
 
 ```
-[ Whole Sector ]  사이트 전체 요약 · Violation/Disconnect 리스트 · Sector 카드
-       │  섹터 탭·카드 선택
-       ▼
-[ Sector ]  섹터 지도 배너 · Violation Heatmap · Violation/Disconnect/All Cart 리스트
-       │  카트 행 선택
-       ▼
-[ Cart ]  카트 상세(상태·주행·위반 정보) · 카트 추적 지도
+상단 탭바:  [ Whole Sector ]  ⇄  [ Sector #N ]      ← 탭으로 자유 전환
+                  │                     │
+   Violation/Disconnect 행     Violation/Disconnect/All Cart 행
+                  └──────────┬──────────┘
+                             ▼
+                         [ Cart ]      뒤로 → 직전 화면(Whole Sector 또는 Sector)
+
+※ Whole Sector의 '섹터 카드' 클릭 → 해당 Sector 탭으로 전환
 ```
 
 | 화면 | 내용 | 이동 |
 | --- | --- | --- |
-| **Whole Sector** (Main) | 사이트 전체 요약(총 카트 + Compliance/Violation/Disconnect 카운트), Violation·Disconnect 카트 리스트, Sector 카드 목록(지도 썸네일) | 섹터 탭/카드 → Sector · 카트 행 → Cart |
-| **Sector** | 섹터 지도 배너(지오펜스 + 카트 마커), **Violation Heatmap**(라벨 탭=팝업, ⤢=전체화면 줌 지도), Violation·Disconnect·All Cart 리스트(페이지네이션) | 카트 행 → Cart |
-| **Cart** | 선택 카트 상세(상태·주행상태·등록ID·타임스탬프, 위반 시 지속시간/최고속도/시각/주소) + 카트 추적 지도 | 뒤로 → Sector |
+| **Whole Sector** (Main) | 사이트 전체 요약(총 카트 + Compliance/Violation/Disconnect 카운트), Violation·Disconnect 카트 리스트, Sector 카드 목록(지도 썸네일) | Violation/Disconnect 카트 행 → 해당 Cart · 섹터 카드 → 해당 Sector 탭 |
+| **Sector** | 섹터 지도 배너(지오펜스 + 카트 마커), **Violation Heatmap**(라벨 탭=팝업, ⤢=전체화면 줌 지도), Violation·Disconnect·All Cart 리스트(페이지네이션) | Violation/Disconnect/All Cart 행 → Cart |
+| **Cart** | 선택 카트 상세(상태·주행상태·등록ID·타임스탬프, 위반 시 지속시간/최고속도/시각/주소) + 카트 추적 지도 | 뒤로 → 직전 화면(Whole Sector 또는 Sector) |
 
 - **지도 모드**: 섹터 카드 썸네일 / 배너 / 전체화면(히트맵·카트 추적). 마커 = 카트(상태 색), 뒤 glow = 위반 강조. 마커/줌 상수는 Figma 실측 기반(`MapConfig` 등).
 - **상태 표현**: 로딩 / 에러(재시도) / 성공을 `LoadStateContent`가 분기.
