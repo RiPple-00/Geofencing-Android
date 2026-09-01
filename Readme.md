@@ -209,7 +209,9 @@ app/src/main/java/com/example/geofencing
 | `SupabaseDashboardRepository` (`ui/dashboard`) | **현행 구현.** Supabase(PostgREST)에서 섹터/카트/이벤트를 읽어 `DashboardSector`로 조립, `LoadState`로 흘려보냄. |
 | `LiveGeofenceMap` | GoogleMap(카메라: 카트 추적 `FollowCart` / 지오펜스 맞춤 `FitGeofence`) 위에 `GeofenceMapOverlay`(Canvas 마커/글로우/라벨)를 라이브 projection으로 겹침. |
 
-### 데이터 흐름 (화면 / ViewModel / Repository)
+### API · 데이터 연결 구조
+
+실제 API 호출은 **`SupabaseApi`(Retrofit)** 에서 시작한다 → `SupabaseDashboardRepository`가 도메인(`DashboardSector`)으로 조립 → 각 ViewModel이 `*UiMapper`로 화면 상태를 만든다.
 
 ```
 Supabase (PostgREST, 임시 BE)
@@ -227,15 +229,28 @@ WholeSector/Sector/Cart ViewModel ──(*UiMapper)──▶ *UiState ──(Sta
 
 ## 7. 아키텍처 설명
 
-- **UI 구조**: 100% Jetpack Compose + Material 3. **단일 Activity, 단일 NavHost**. 화면 전환은 route가 아니라 `HomeScreen` 내부의 **탭/페이지 상태**로 처리(WholeSector ↔ Sector ↔ Cart). Light/Dark 컬러 토큰은 모두 정의되어 있으나, 현재 앱은 `GeofencingTheme(darkTheme = true)` 기본값으로 다크 테마를 사용한다. 커스텀 `ExtendedColors`/`Type`/`Spacing` 적용.
-- **화면 계층 분리**: 각 화면 = `Page`(Compose UI) + `ViewModel` + `UiState`(화면 상태 모델) + `UiMapper`(도메인→UI 변환) + `SampleData`(프리뷰용). `HomeRoute`가 ViewModel을 소유하고 `HomeScreen`에 화면 상태와 `HomeActions`를 주입한다. `HomeScreen`은 ViewModel 상태를 받되, 탭/드릴다운/지도 오버레이 같은 화면 컨테이너 UI 상태는 직접 관리한다.
-- **ViewModel 사용 방식**: `HomeRoute`가 `hiltViewModel()`로 주입, ViewModel은 Repository의 `Flow`를 `*UiMapper`로 `map`해 `stateIn(viewModelScope, WhileSubscribed(5s), Loading)`으로 화면 상태를 만든다. UI는 `collectAsState()`로 구독. 재시도는 `retry()` → `repository.refresh()`.
-- **Repository 구조**: 계약(interface)과 구현(Impl) 분리, Hilt `@Binds`로 연결. **두 계층**이 공존한다.
-  - `ui/dashboard`의 `DashboardRepository` → **현행** `SupabaseDashboardRepository`(임시 Supabase 백엔드)가 실제 화면을 구동. `MockDashboardRepository`(로컬 목)도 있음.
-  - `data/`의 Retrofit 기반 `CartRepository`/`SectorRepository`/… → **팀 REST BE 도입 대비** 도메인 계약. 현재 대시보드 경로에서는 주 사용 안 함.
-- **로컬 저장소 사용 여부**: **사용함.** DataStore Preferences — `ViolationAckDataStore`(위반 확인 상태), `SelectedSiteDataStore`(선택 사이트). Room 등 DB는 없음.
-- **화면 이동 방식**: Navigation Compose 골격은 있으나 현재 route는 `main` 하나. 실질 이동은 탭/페이지 상태 + 콜백(`HomeActions`의 `onSelectSector`/`onSelectCart` 등)으로 상위 컨테이너가 페이지를 전환.
-- **상태 관리 방식**: Kotlin `Flow`/`StateFlow` + `LoadState<T>`(`Loading`/`Success`/`Error`) 단방향 데이터 흐름. 에러 시 `LoadState.Error` → 재시도 노출. 지도 카메라/오버레이는 Compose 상태(`rememberCameraPositionState`, `snapshotFlow`)로 반응형 갱신.
+### UI 구조
+100% Jetpack Compose + Material 3. **단일 Activity, 단일 NavHost**. 화면 전환은 route가 아니라 `HomeScreen` 내부의 **탭/페이지 상태**로 처리(WholeSector ↔ Sector ↔ Cart). Light/Dark 컬러 토큰은 모두 정의되어 있으나, 현재 앱은 `GeofencingTheme(darkTheme = true)` 기본값으로 다크 테마를 사용한다. 커스텀 `ExtendedColors`/`Type`/`Spacing` 적용.
+
+### 화면 계층 분리
+각 화면 = `Page`(Compose UI) + `ViewModel` + `UiState`(화면 상태 모델) + `UiMapper`(도메인→UI 변환) + `SampleData`(프리뷰용). `HomeRoute`가 ViewModel을 소유하고 `HomeScreen`에 화면 상태와 `HomeActions`를 주입한다. `HomeScreen`은 ViewModel 상태를 받되, 탭/드릴다운/지도 오버레이 같은 화면 컨테이너 UI 상태는 직접 관리한다.
+
+### ViewModel
+`HomeRoute`가 `hiltViewModel()`로 주입. ViewModel은 Repository의 `Flow`를 `*UiMapper`로 `map`해 `stateIn(viewModelScope, WhileSubscribed(5s), Loading)`으로 화면 상태를 만든다. UI는 `collectAsState()`로 구독하고, 재시도는 `retry()` → `repository.refresh()`.
+
+### Repository
+계약(interface)과 구현(Impl)을 분리하고 Hilt `@Binds`로 연결한다. **두 계층**이 공존한다.
+- `ui/dashboard`의 `DashboardRepository` → **현행** `SupabaseDashboardRepository`(임시 Supabase 백엔드)가 실제 화면을 구동. `MockDashboardRepository`(로컬 목)도 있음.
+- `data/`의 Retrofit 기반 `CartRepository`/`SectorRepository`/… → **팀 REST BE 도입 대비** 도메인 계약. 현재 대시보드 경로에서는 주 사용 안 함.
+
+### 로컬 저장소
+DataStore Preferences 사용 — `ViolationAckDataStore`(위반 확인 상태), `SelectedSiteDataStore`(선택 사이트). Room 등 DB는 없음.
+
+### 화면 이동
+Navigation Compose 골격은 있으나 현재 route는 `main` 하나. 실질 이동은 탭/페이지 상태 + 콜백(`HomeActions`의 `onSelectSector`/`onSelectCart` 등)으로 상위 컨테이너가 페이지를 전환한다.
+
+### 상태 관리
+Kotlin `Flow`/`StateFlow` + `LoadState<T>`(`Loading`/`Success`/`Error`) 단방향 데이터 흐름. 에러 시 `LoadState.Error` → 재시도 노출. 지도 카메라/오버레이는 Compose 상태(`rememberCameraPositionState`, `snapshotFlow`)로 반응형 갱신한다.
 
 ---
 
