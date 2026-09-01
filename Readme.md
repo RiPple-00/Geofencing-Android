@@ -373,7 +373,6 @@ adb logcat | grep -Ei "AndroidRuntime|Analytics|okhttp"         # 크래시/이�
 - **현행 Supabase vs 팀 REST 계약 격차**: 대시보드 UI는 현재 Supabase 스키마의 `disconnected`, 카트 위치(`lat`/`lng`), 위반 상세(`max_speed`/`address`)를 사용한다. 반면 팀 REST DTO는 아직 `violating`/`compliant` 중심이므로, 팀 BE 전환 시 필드 계약을 맞춰야 한다.
 - **지도 튜닝 값**: 마커 크기/줌 한계(`CartMinZoom`, `HeatmapMin/MaxZoom`, 마커 min/max·glow 등)는 Figma 실측 기반 상수. 실기기에서 재확인하며 조정.
 - **SDK 37**: `compileSdk`/`targetSdk` = 37이며, Android Studio·AGP·JDK 버전 요구사항을 함께 유지해야 한다(AGP 9 → JDK 17+).
-- **CI/정적 분석 자동화**: 현재 repo에는 `.github/workflows`, SonarQube, detekt/ktlint 설정이 없다. 자동화 전까지는 PR 전 로컬 `./gradlew test`와 수동 리뷰로 확인한다.
 - **로그인/로그아웃/알림/검색 연결**: 기획 미확정 또는 메인 흐름 미연결 상태. 확정 전까지 관련 UI/route는 미완성 상태.
 
 ---
@@ -382,6 +381,6 @@ adb logcat | grep -Ei "AndroidRuntime|Analytics|okhttp"         # 크래시/이�
 
 - **커밋 메시지**: [Conventional Commits](https://www.conventionalcommits.org) — `feat` / `fix` / `docs` / `refactor` / `test` / `chore` 등. 예: `fix(map): correct heatmap fit`.
 - **브랜치 전략**: GitHub Flow — `main`에서 분기 → PR로 병합. 병합은 **Squash & Merge**(PR 1개 = `main` 커밋 1개), 병합 후 브랜치는 삭제. **푸시된 히스토리는 리라이트하지 않는다.**
-- **리뷰/검증**: `.github/pull_request_template.md`를 채우고, PR 전 `./gradlew test`를 실행한다. Copilot 리뷰나 SonarQube는 repo 자동화가 아니라 팀에서 별도로 사용하는 경우 수동으로 확인한다.
+- **리뷰/검증**: PR·`main` push 시 **CI(GitHub Actions, `.github/workflows/ci.yml`)가 빌드 + 단위 테스트를 자동 실행**한다. PR 템플릿(`.github/pull_request_template.md`)을 채운다. (detekt/ktlint·SonarQube 등 정적 분석은 아직 미도입 — 후속.)
 - **코드 스타일**: 주변 코드와 일관되게 작성(네이밍·주석 밀도·관용구).
 - **시크릿**: `local.properties` · `keystore.properties` · `*.jks`는 절대 커밋 금지(gitignore 유지).
