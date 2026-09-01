@@ -22,11 +22,11 @@
 | --- | --- |
 | App 이름 | `geofencing` (`res/values/strings.xml`의 `app_name`) |
 | Package name / applicationId | `com.example.geofencing` |
-| versionName / versionCode | `1.0` / `1` (`app/build.gradle.kts`) |
-| Release APK 산출물 | `app/build/outputs/apk/release/app-release.apk` |
-| Git branch / tag / commit | 릴리스는 **`main`** 에서 빌드 · **태그 없음**(릴리스 태깅 미도입) · 배포본별 커밋 고정은 기록하지 않음 — 현재 최신 커밋은 `git rev-parse --short HEAD`로 확인(작성 시점 예: `83a1cd1`) |
+| versionName / versionCode | `1.2` / `2` (`app/build.gradle.kts`) |
+| Release APK 산출물 | `app/build/outputs/apk/release/app-release.apk` (배포 파일명 예: `geofence_v1.2.apk`) |
+| Git branch / tag / commit | 릴리스는 **`main`** 에서 빌드 · 태그 **`v1.2`** · 해당 태그가 배포본 커밋을 고정한다(정확한 커밋: `git rev-list -n1 v1.2`) |
 
-> ⚠️ 외부 배포/스토어 업로드가 필요해지면 `versionName`/`versionCode` 갱신 규칙, 배포 파일명 규칙, **릴리스 태깅·배포↔커밋 고정** 규칙을 함께 정해야 한다. 현재 Gradle 설정은 별도 파일명 변경 없이 기본 산출물명을 사용하고, 릴리스는 태그 없이 `main`에서 빌드한다. (→ 12장)
+> ⚠️ 외부 배포/스토어 업로드가 필요해지면 `versionName`/`versionCode` 갱신 규칙과 배포 파일명 규칙을 문서화해 두는 편이 좋다. 릴리스 절차: **버전 bump → `main` 머지 → `vX.Y` 태그 → 태그 커밋에서 `assembleRelease`**. (→ 12장)
 
 ---
 
@@ -339,7 +339,7 @@ adb logcat | grep -Ei "AndroidRuntime|Analytics|okhttp"         # 크래시/이�
 ### 리팩터링이 필요한 부분
 
 - **`applicationId`가 기본값 `com.example.geofencing`** — 실배포 전 실제 도메인 기반 ID로 변경 필요.
-- **버전 관리 / 릴리스 추적**: `versionName`/`versionCode`가 `1.0`/`1`로 고정되어 있고, **릴리스 태깅과 배포↔커밋 고정이 없다**(현재 태그 없이 `main`에서 빌드). 릴리스 프로세스에서 버전 갱신 규칙 + 릴리스 태그(`vX.Y`) + 배포본별 커밋 고정 + 필요 시 APK 파일명 규칙을 함께 정해야 한다.
+- **버전 관리 / 릴리스 추적**: 현재 `versionName`/`versionCode` = `1.2`/`2`, 릴리스는 `v1.2` 태그로 커밋을 고정한다. 다만 버전 bump·태깅·릴리스 노트가 **수동**이고 CI 자동화가 없다 — 릴리스 스크립트/워크플로로 자동화하고 `versionCode` 증가 규칙을 정립하는 것이 좋다.
 - **데이터 레이어 이원화**: `ui/dashboard`의 Supabase 경로가 실제 화면을 구동하고, `data/`의 Retrofit 계층은 팀 REST BE 대비로 병존. 팀 BE 확정 시 `DashboardRepository` 구현을 교체하고 `data/`로 일원화 필요.
 - **네비게이션**: NavHost route가 `main` 하나뿐이고 화면 전환이 `HomeScreen` 내부 상태에 묶여 있음. 로그인/로딩 화면 도입 시 route 기반으로 재정비 필요(코드 내 TODO).
 - **Analytics**: `DebugAnalyticsLogger`는 Logcat 출력 스캐폴딩. 실제 수집 필요 시 실 구현체로 `@Binds` 교체.
