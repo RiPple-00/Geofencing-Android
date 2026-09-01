@@ -24,7 +24,7 @@
 | Package name / applicationId | `com.example.geofencing` |
 | versionName / versionCode | `1.2` / `2` (`app/build.gradle.kts`) |
 | Release APK 산출물 | `app/build/outputs/apk/release/app-release.apk` (배포 파일명 예: `geofence_v1.2.apk`) |
-| Git branch / tag / commit | 릴리스는 **`main`** 에서 빌드 · 태그 **`v1.2`** · 해당 태그가 배포본 커밋을 고정한다(정확한 커밋: `git rev-list -n1 v1.2`) |
+| Git branch / tag / commit | branch **`main`** · tag **`v1.2`** · commit **`ae397e1`** (`ae397e1128e892b28269afea2b1694862cc90eeb`) — `v1.2` 태그가 이 배포본 커밋을 고정 |
 
 > ⚠️ 외부 배포/스토어 업로드가 필요해지면 `versionName`/`versionCode` 갱신 규칙과 배포 파일명 규칙을 문서화해 두는 편이 좋다. 릴리스 절차: **버전 bump → `main` 머지 → `vX.Y` 태그 → 태그 커밋에서 `assembleRelease`**. (→ 12장)
 
@@ -34,7 +34,7 @@
 
 | 항목 | 값 / 설명 |
 | --- | --- |
-| Android Studio | AGP 9.2를 지원하는 버전(최신 안정판 권장). Gradle JVM은 Android Studio 번들 JBR로 고정됨(`gradle.properties`의 `org.gradle.java.home`). |
+| Android Studio | 2025.3.x (build `AI-253.32098.37.2534.15336583`). Gradle JVM은 Android Studio 번들 JBR로 고정됨(`gradle.properties`의 `org.gradle.java.home`). |
 | JDK | **빌드 실행**: Android Studio 번들 JBR(JDK 21). AGP 9.x는 최소 JDK 17 이상 필요. **앱 컴파일 타깃**: Java 11 (`sourceCompatibility`/`targetCompatibility = 11`). |
 | Gradle | 9.4.1 (`gradle/wrapper/gradle-wrapper.properties`) |
 | AGP (Android Gradle Plugin) | 9.2.1 |
@@ -163,6 +163,8 @@ Site (고객사, 예: "Golfzon County")
 ---
 
 ## 6. 프로젝트 구조
+
+> ℹ️ **모듈 구성** — 단일 Gradle 모듈(`:app`) 프로젝트다. 별도 라이브러리 모듈 없이, 아래처럼 패키지 레이어(`data` / `ui` / `di` / `util`)로 분리한다.
 
 ```
 app/src/main/java/com/example/geofencing
@@ -355,7 +357,7 @@ adb logcat | grep -Ei "AndroidRuntime|Analytics|okhttp"         # 크래시/이�
 - **임시 백엔드 전제**: 현재 Supabase는 인터임(interim). 스키마/목데이터는 `supabase/schema.sql` 단일 파일로 관리(신규 프로젝트에 한 번 실행).
 - **현행 Supabase vs 팀 REST 계약 격차**: 대시보드 UI는 현재 Supabase 스키마의 `disconnected`, 카트 위치(`lat`/`lng`), 위반 상세(`max_speed`/`address`)를 사용한다. 반면 팀 REST DTO는 아직 `violating`/`compliant` 중심이므로, 팀 BE 전환 시 필드 계약을 맞춰야 한다.
 - **지도 튜닝 값**: 마커 크기/줌 한계(`CartMinZoom`, `HeatmapMin/MaxZoom`, 마커 min/max·glow 등)는 Figma 실측 기반 상수. 실기기에서 재확인하며 조정.
-- **SDK 37**: compile/target이 최신 API에 맞춰져 있어, Android Studio/AGP/JDK 버전 요구를 함께 유지해야 함(AGP 9 → JDK 17+).
+- **SDK 37**: `compileSdk`/`targetSdk` = 37이며, Android Studio·AGP·JDK 버전 요구사항을 함께 유지해야 한다(AGP 9 → JDK 17+).
 - **CI/정적 분석 자동화**: 현재 repo에는 `.github/workflows`, SonarQube, detekt/ktlint 설정이 없다. 자동화 전까지는 PR 전 로컬 `./gradlew test`와 수동 리뷰로 확인한다.
 - **로그인/로그아웃/알림/검색 연결**: 기획 미확정 또는 메인 흐름 미연결 상태. 확정 전까지 관련 UI/route는 미완성 상태.
 
