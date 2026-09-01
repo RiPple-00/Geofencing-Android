@@ -329,12 +329,11 @@ adb logcat | grep -Ei "AndroidRuntime|Analytics|okhttp"         # 크래시/이�
 | 증상 | 원인 | 확인 · 해결 |
 | --- | --- | --- |
 | 지도가 회색 빈 화면 | `MAPS_API_KEY` 누락, 또는 (Release) 릴리스 keystore SHA-1 미등록 | `local.properties`의 키 확인 · Google Cloud Console에 SHA-1 등록 |
-| 데이터가 안 뜸 / 무한 로딩 | `SUPABASE_URL`·`SUPABASE_ANON_KEY` 오류, Supabase RLS(public read) 미설정, 네트워크 | `OkHttp` 로그로 응답 코드 점검 · `supabase/schema.sql`의 RLS 정책 확인 · UI는 `LoadState.Error`로 재시도 노출 |
-| Release에서만 통신 실패(HTTP) | Release는 `usesCleartextTraffic="false"`라 평문 HTTP 차단 | Supabase는 HTTPS라 정상 · 로컬 HTTP 팀 BE(`BASE_URL=http://…`)는 Debug 빌드로 테스트 |
+| 데이터가 안 뜸 / 무한 로딩 | `SUPABASE_URL`·`SUPABASE_ANON_KEY` 오류, `supabase/schema.sql`의 RLS(public read) 정책 미실행, 네트워크 | `OkHttp` 로그로 응답 코드 점검 · `schema.sql`의 RLS 정책 실행 여부 확인 · UI는 `LoadState.Error`로 재시도 노출 |
+| Release 빌드에서 로컬 HTTP BE 접속 안 됨 | Release/main manifest는 `usesCleartextTraffic="false"`(평문 HTTP 차단), Debug만 `true` | 로컬 HTTP 팀 BE(`BASE_URL=http://…`)는 Debug 빌드로 테스트 |
 | 설치 실패("패키지가 잘못되어") | Debug↔Release **서명 충돌**(같은 applicationId, 다른 키) | 기존 앱 삭제 후 재설치 |
 | Gradle sync / 빌드 실패 | `sdk.dir` 누락, `org.gradle.java.home` 경로 불일치, JDK 17 미만 | `local.properties`·`gradle.properties`·IDE Gradle JVM 확인 (2장) |
 | 마커·지오펜스 위치가 어긋남/뒤집힘 | GeoJSON **`[lng, lat]` 순서** 혼동 | `LatLng(coords[1], coords[0])` 확인 (5장 좌표 규약) |
-| Compose 프리뷰만 렌더 실패 | 프리뷰(inspection) 중 지도 스냅샷 등 런타임 접근 | `LocalInspectionMode` 가드로 프리뷰에서 건너뛰는지 확인 |
 | 앱이 즉시 종료(크래시) | 처리 안 된 예외 | Logcat `AndroidRuntime`의 `FATAL EXCEPTION` 스택 확인 |
 
 ---
