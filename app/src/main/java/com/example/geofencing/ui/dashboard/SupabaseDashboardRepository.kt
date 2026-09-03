@@ -102,6 +102,16 @@ class SupabaseDashboardRepository @Inject constructor(
         latestEventByCart: Map<Long, SbEvent>
     ): List<DashboardCart> {
         if (geofence.isEmpty()) return emptyList()
+        val now = Instant.now()
+        val positions = synthesizePositions(geofence, carts)
+        return carts.mapIndexed { i, cart ->
+            toDashboardCart(cart, positions[i], latestEventByCart[cart.id], now)
+        }
+    }
+
+    // 실 좌표(lat/lng)가 있으면 그대로, 없으면 geofence 박스 기준으로 합성한다
+    // (위반=경계 밖, 그 외=안쪽). 모든 카트가 마커 위치를 갖도록 인덱스를 순환한다.
+    private fun synthesizePositions(geofence: List<LatLng>, carts: List<SbCart>): List<LatLng> {
         val centerLat = geofence.map { it.latitude }.average()
         val centerLng = geofence.map { it.longitude }.average()
         val halfLat = (geofence.maxOf { it.latitude } - geofence.minOf { it.latitude }) / 2
@@ -113,43 +123,58 @@ class SupabaseDashboardRepository @Inject constructor(
         val outsideFracs = listOf(1.3 to 0.2, -0.2 to 1.3, 1.2 to -0.9, -1.1 to -0.7)
         var insideIdx = 0
         var outsideIdx = 0
-        val now = Instant.now()
         return carts.map { cart ->
-            val status = when (cart.geofenceStatus) {
-                "violating" -> StatusKind.Violation
-                "disconnected" -> StatusKind.Disconnect
-                else -> StatusKind.Compliance
-            }
-            val position = if (cart.lat != null && cart.lng != null) {
+            if (cart.lat != null && cart.lng != null) {
                 LatLng(cart.lat, cart.lng)
             } else {
-                val (fracLat, fracLng) = if (status == StatusKind.Violation) {
+                val (fracLat, fracLng) = if (cart.geofenceStatus == "violating") {
                     outsideFracs[outsideIdx++ % outsideFracs.size]
                 } else {
                     insideFracs[insideIdx++ % insideFracs.size]
                 }
                 LatLng(centerLat + fracLat * halfLat, centerLng + fracLng * halfLng)
             }
-            val event = latestEventByCart[cart.id]
-            val eventAt = event?.let { parseInstant(it.occurredAt) }
-            DashboardCart(
-                id = cart.name,
-                position = position,
-                status = status,
-                drivingState = if (cart.drivingStatus == "driving") "Driving" else "Idle",
-                registeredId = "SB-%03d".format(cart.id),
-                timestamp = eventAt?.let { timeFormatter.format(it) } ?: "",
-                violationDuration = if (status == StatusKind.Violation) {
-                    eventAt?.let { formatDuration(Duration.between(it, now)) } ?: "—"
-                } else null,
-                maxSpeed = if (status == StatusKind.Violation) event?.maxSpeed ?: "—" else null,
-                violationAtTime = if (status == StatusKind.Violation) {
-                    eventAt?.let { timeFormatter.format(it) } ?: "—"
-                } else null,
-                violationAtAddress = if (status == StatusKind.Violation) event?.address ?: "—" else null
-            )
         }
     }
+
+    private fun toDashboardCart(cart: SbCart, position: LatLng, event: SbEvent?, now: Instant): DashboardCart {
+        val status = statusOf(cart.geofenceStatus)
+        val eventAt = event?.let { parseInstant(it.occurredAt) }
+        // 위반 상세는 위반 상태일 때만 채운다(그 외 전부 null). 단일 분기로 4개 필드를 함께 계산.
+        val violation = if (status == StatusKind.Violation) violationInfo(event, eventAt, now) else null
+        return DashboardCart(
+            id = cart.name,
+            position = position,
+            status = status,
+            drivingState = if (cart.drivingStatus == "driving") "Driving" else "Idle",
+            registeredId = "SB-%03d".format(cart.id),
+            timestamp = eventAt?.let { timeFormatter.format(it) } ?: "",
+            violationDuration = violation?.duration,
+            maxSpeed = violation?.maxSpeed,
+            violationAtTime = violation?.atTime,
+            violationAtAddress = violation?.atAddress
+        )
+    }
+
+    private fun statusOf(geofenceStatus: String): StatusKind = when (geofenceStatus) {
+        "violating" -> StatusKind.Violation
+        "disconnected" -> StatusKind.Disconnect
+        else -> StatusKind.Compliance
+    }
+
+    private class ViolationInfo(
+        val duration: String,
+        val maxSpeed: String,
+        val atTime: String,
+        val atAddress: String
+    )
+
+    private fun violationInfo(event: SbEvent?, eventAt: Instant?, now: Instant) = ViolationInfo(
+        duration = eventAt?.let { formatDuration(Duration.between(it, now)) } ?: "—",
+        maxSpeed = event?.maxSpeed ?: "—",
+        atTime = eventAt?.let { timeFormatter.format(it) } ?: "—",
+        atAddress = event?.address ?: "—"
+    )
 
     private companion object {
         val timeFormatter: DateTimeFormatter =

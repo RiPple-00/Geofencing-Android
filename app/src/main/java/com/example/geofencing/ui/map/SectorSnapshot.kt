@@ -243,28 +243,46 @@ fun SectorSnapshotPrefetcher(
             // 지도 1개로 pending 전체를 순회: 카메라 이동 → 타일 대기 → 캡처 → 저장.
             MapEffect(loaded) { map ->
                 if (!loaded) return@MapEffect
-                for (req in pending) {
-                    val key = SectorSnapshotCache.keyOf(req.sectorId, req.geofence, widthDp, heightDp)
-                    if (SectorSnapshotCache.isCached(context, key)) continue
-                    val bounds = LatLngBounds.builder().apply { req.geofence.forEach(::include) }.build()
-                    map.moveCamera(
-                        CameraUpdateFactory.newLatLngBounds(bounds, fitWidthPx, fitHeightPx, fitPaddingPx)
-                    )
-                    delay(SnapshotSettleMillis)
-                    val visible = map.projection.visibleRegion.latLngBounds
-                    awaitMapSnapshot(map)?.let { bmp ->
-                        SectorSnapshotCache.store(
-                            context, key, bmp,
-                            SnapshotProjection(
-                                south = visible.southwest.latitude, west = visible.southwest.longitude,
-                                north = visible.northeast.latitude, east = visible.northeast.longitude,
-                                widthPx = bmp.width, heightPx = bmp.height
-                            )
-                        )
-                    }
-                }
+                capturePending(
+                    map, context, pending, widthDp, heightDp,
+                    fitWidthPx, fitHeightPx, fitPaddingPx
+                )
                 done = true
             }
+        }
+    }
+}
+
+// pending 섹터들을 지도 1개로 순회 캡처: 카메라 이동 → 타일 대기 → 스냅샷 → 캐시 저장.
+// (Composable의 복잡도를 낮추려 캡처 루프를 여기로 분리.)
+private suspend fun capturePending(
+    map: GmsGoogleMap,
+    context: android.content.Context,
+    pending: List<SectorSnapshotRequest>,
+    widthDp: Int,
+    heightDp: Int,
+    fitWidthPx: Int,
+    fitHeightPx: Int,
+    fitPaddingPx: Int
+) {
+    for (req in pending) {
+        val key = SectorSnapshotCache.keyOf(req.sectorId, req.geofence, widthDp, heightDp)
+        if (SectorSnapshotCache.isCached(context, key)) continue
+        val bounds = LatLngBounds.builder().apply { req.geofence.forEach(::include) }.build()
+        map.moveCamera(
+            CameraUpdateFactory.newLatLngBounds(bounds, fitWidthPx, fitHeightPx, fitPaddingPx)
+        )
+        delay(SnapshotSettleMillis)
+        val visible = map.projection.visibleRegion.latLngBounds
+        awaitMapSnapshot(map)?.let { bmp ->
+            SectorSnapshotCache.store(
+                context, key, bmp,
+                SnapshotProjection(
+                    south = visible.southwest.latitude, west = visible.southwest.longitude,
+                    north = visible.northeast.latitude, east = visible.northeast.longitude,
+                    widthPx = bmp.width, heightPx = bmp.height
+                )
+            )
         }
     }
 }

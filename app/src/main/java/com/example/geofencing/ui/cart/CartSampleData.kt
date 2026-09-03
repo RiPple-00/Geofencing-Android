@@ -9,6 +9,7 @@ fun cartStateFor(sectorName: String, cartName: String): CartUiState =
         ?: error("preview sample: cart '$cartName' not found in '$sectorName'")
 
 // 프리뷰용 3케이스(Sector #1: Cart #1=violation, #2=disconnect, #3=compliance).
-fun sampleCartComplianceState() = cartStateFor("Sector #1", "Cart #3")
-fun sampleCartViolationState() = cartStateFor("Sector #1", "Cart #1")
-fun sampleCartDisconnectState() = cartStateFor("Sector #1", "Cart #2")
+private const val SampleSectorName = "Sector #1"
+fun sampleCartComplianceState() = cartStateFor(SampleSectorName, "Cart #3")
+fun sampleCartViolationState() = cartStateFor(SampleSectorName, "Cart #1")
+fun sampleCartDisconnectState() = cartStateFor(SampleSectorName, "Cart #2")

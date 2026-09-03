@@ -41,7 +41,7 @@ class MockDashboardRepository @Inject constructor() : DashboardRepository {
 
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class DashboardRepositoryModule {
+interface DashboardRepositoryModule {
     @Binds
-    abstract fun bindDashboardRepository(impl: SupabaseDashboardRepository): DashboardRepository
+    fun bindDashboardRepository(impl: SupabaseDashboardRepository): DashboardRepository
 }
