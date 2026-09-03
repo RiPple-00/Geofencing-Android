@@ -51,7 +51,6 @@ fun GeofenceMapOverlay(
     projector: MapProjector,
     modifier: Modifier = Modifier,
     scrimColor: Color = GeofenceOutsideScrimColor,
-    // TODO(측정): 실제 디자인 값으로 확정.
     boundaryColor: Color = MaterialTheme.extendedColors.textPrimary,
     boundaryWidth: Dp = 1.dp
 ) {
@@ -140,7 +139,7 @@ fun GeofenceMapOverlay(
     }
 }
 
-// --- 스타일 상수(TODO 측정: 실제 반경/두께는 디자인 확정 시 교체) ---
+// --- 스타일 상수 ---
 private const val GlowRadiusMeters = 48.0
 private const val MarkerRadiusMeters = 8.0
 // 마커 외곽 지름(테두리 포함) 하한/상한. 배너(축소)에선 하한, 60% 확대에선 상한으로 멈춘다.

@@ -8,7 +8,11 @@ import androidx.compose.runtime.staticCompositionLocalOf
 // 기본값은 no-op: Provider가 없는 @Preview 등에서도 안전하게 동작한다.
 val LocalAnalytics = staticCompositionLocalOf<AnalyticsLogger> {
     object : AnalyticsLogger {
-        override fun log(event: AnalyticsEvent) {}
-        override fun screen(name: String) {}
+        override fun log(event: AnalyticsEvent) {
+            // no-op 기본값: Provider가 없는 @Preview/테스트에서 계측 이벤트를 무시한다.
+        }
+        override fun screen(name: String) {
+            // no-op 기본값: Provider가 없는 @Preview/테스트에서 화면 로그를 무시한다.
+        }
     }
 }

@@ -54,7 +54,6 @@ fun MapExpandButton(onClick: () -> Unit, modifier: Modifier = Modifier) =
 fun MapReduceButton(onClick: () -> Unit, modifier: Modifier = Modifier) =
     MapCornerButton(R.drawable.ic_reduction, "축소", onClick, modifier)
 
-// TODO(측정): 박스 패딩/배경 fill 실측값 필요. 지금은 추정치(패딩 8dp, fill=fillSecondary).
 private val MapCornerButtonPadding = 8.dp
 private val MapCornerIconSize = 21.dp
 

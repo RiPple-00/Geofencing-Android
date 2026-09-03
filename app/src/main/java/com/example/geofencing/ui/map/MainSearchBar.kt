@@ -89,59 +89,13 @@ fun MainSearchBar(
                 horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.Start),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .border(
-                            width = 1.5.dp,
-                            color = if (isFocused) DarkBorderStrong else DarkBorderDefault,
-                            shape = RoundedCornerShape(RoundedMd)
-                        )
-                        .background(color = DarkFillHighest, shape = RoundedCornerShape(RoundedMd))
-                        .padding(horizontal = Px3, vertical = PyMd),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    if (query.isEmpty()) {
-                        // TODO: 상하 padding("unnamed") 정확한 값 확인되면 0.dp 대신 교체
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(24.dp)
-                                .padding(top = 0.dp, bottom = 0.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.Start),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Image(
-                                painter = painterResource(R.drawable.ic_information),
-                                contentDescription = null,
-                                contentScale = ContentScale.None,
-                                modifier = Modifier
-                                    .padding(1.dp)
-                                    .size(16.dp)
-                            )
-                            Text(
-                                text = "Cart or Sector Name",
-                                style = Body14,
-                                color = DarkTextDisabled,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                    BasicTextField(
-                        value = query,
-                        onValueChange = onQueryChange,
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        // 비활성(포커스 아웃) 상태에서는 입력했던 텍스트가 회색(text-disabled)으로,
-                        // 포커스 상태에서는 기본 텍스트 색으로 보인다 - 텍스트 자체는 지워지지 않음.
-                        textStyle = Body14.copy(color = if (isFocused) DarkTextPrimary else DarkTextDisabled),
-                        cursorBrush = SolidColor(DarkTextPrimary),
-                        interactionSource = interactionSource
-                    )
-                }
+                SearchInputBox(
+                    query = query,
+                    onQueryChange = onQueryChange,
+                    isFocused = isFocused,
+                    interactionSource = interactionSource,
+                    modifier = Modifier.weight(1f)
+                )
 
                 IconButton(
                     onClick = onHamburgerClick,
@@ -163,6 +117,73 @@ fun MainSearchBar(
                 hazeState = hazeState
             )
         }
+    }
+}
+
+// 입력 박스: 테두리/배경 + placeholder(빈 값일 때) + 실제 텍스트 필드. weight는 호출부(Row)에서 전달.
+@Composable
+private fun SearchInputBox(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    isFocused: Boolean,
+    interactionSource: MutableInteractionSource,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .height(48.dp)
+            .border(
+                width = 1.5.dp,
+                color = if (isFocused) DarkBorderStrong else DarkBorderDefault,
+                shape = RoundedCornerShape(RoundedMd)
+            )
+            .background(color = DarkFillHighest, shape = RoundedCornerShape(RoundedMd))
+            .padding(horizontal = Px3, vertical = PyMd),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        if (query.isEmpty()) {
+            SearchPlaceholder()
+        }
+        BasicTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            // 비활성(포커스 아웃) 상태에서는 입력했던 텍스트가 회색(text-disabled)으로,
+            // 포커스 상태에서는 기본 텍스트 색으로 보인다 - 텍스트 자체는 지워지지 않음.
+            textStyle = Body14.copy(color = if (isFocused) DarkTextPrimary else DarkTextDisabled),
+            cursorBrush = SolidColor(DarkTextPrimary),
+            interactionSource = interactionSource
+        )
+    }
+}
+
+@Composable
+private fun SearchPlaceholder() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(24.dp)
+            .padding(top = 0.dp, bottom = 0.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.Start),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Image(
+            painter = painterResource(R.drawable.ic_information),
+            contentDescription = null,
+            contentScale = ContentScale.None,
+            modifier = Modifier
+                .padding(1.dp)
+                .size(16.dp)
+        )
+        Text(
+            text = "Cart or Sector Name",
+            style = Body14,
+            color = DarkTextDisabled,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 

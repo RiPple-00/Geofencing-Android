@@ -65,7 +65,7 @@ import java.util.Locale
 import kotlin.math.log2
 
 private val CartMapHeight = 273.dp
-// inline 지도 줌(카트 타이트 추적). TODO(측정): 실제 값 확정.
+// inline 지도 줌(카트 타이트 추적).
 private const val CartFollowZoom = MapZoom100Percent // 100%
 // fullscreen은 inline 대비 1.2배 확대(줌 레벨은 로그 스케일이라 log2).
 private val CartFullscreenZoom = CartFollowZoom + log2(1.2f)

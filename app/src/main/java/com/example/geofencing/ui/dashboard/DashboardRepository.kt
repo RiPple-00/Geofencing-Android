@@ -1,8 +1,8 @@
 package com.example.geofencing.ui.dashboard
 
 import com.example.geofencing.ui.common.LoadState
-import dagger.Binds
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.Flow
@@ -41,7 +41,7 @@ class MockDashboardRepository @Inject constructor() : DashboardRepository {
 
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class DashboardRepositoryModule {
-    @Binds
-    abstract fun bindDashboardRepository(impl: SupabaseDashboardRepository): DashboardRepository
+object DashboardRepositoryModule {
+    @Provides
+    fun provideDashboardRepository(impl: SupabaseDashboardRepository): DashboardRepository = impl
 }
