@@ -37,9 +37,11 @@ fun ViolationRow(
     status = RowStatus.AlertTime(remaining),
     onClick = onClick,
     modifier = modifier,
-    data1Width = ViolationData1Width,
-    data2Width = ViolationData2Width,
-    showDivider = showDivider
+    style = StatusRowStyle(
+        data1Width = ViolationData1Width,
+        data2Width = ViolationData2Width,
+        showDivider = showDivider
+    )
 )
 
 // Violation 섹션 행(카트 단독): 섹터가 이미 정해진 화면용. data2 자리는 비워둔다.
@@ -56,9 +58,11 @@ fun ViolationRow(
     status = RowStatus.AlertTime(remaining),
     onClick = onClick,
     modifier = modifier,
-    data1Width = ViolationData1Width,
-    data2Width = ViolationData2Width,
-    showDivider = showDivider
+    style = StatusRowStyle(
+        data1Width = ViolationData1Width,
+        data2Width = ViolationData2Width,
+        showDivider = showDivider
+    )
 )
 
 // Disconnect 섹션 행(카트+섹터): 우측에 회색 경과 시간.
@@ -77,9 +81,11 @@ fun DisconnectRow(
     status = RowStatus.Elapsed(elapsed),
     onClick = onClick,
     modifier = modifier,
-    data1Width = DisconnectData1Width,
-    data2Width = DisconnectData2Width,
-    showDivider = showDivider
+    style = StatusRowStyle(
+        data1Width = DisconnectData1Width,
+        data2Width = DisconnectData2Width,
+        showDivider = showDivider
+    )
 )
 
 // Disconnect 섹션 행(카트 단독): 섹터가 이미 정해진 화면용. data2 자리는 비워둔다.
@@ -96,9 +102,11 @@ fun DisconnectRow(
     status = RowStatus.Elapsed(elapsed),
     onClick = onClick,
     modifier = modifier,
-    data1Width = DisconnectData1Width,
-    data2Width = DisconnectData2Width,
-    showDivider = showDivider
+    style = StatusRowStyle(
+        data1Width = DisconnectData1Width,
+        data2Width = DisconnectData2Width,
+        showDivider = showDivider
+    )
 )
 
 // All Cart List 행: 카트 + 주행상태 + 상태 배지(Compliance / Violation / Disconnect).
@@ -117,8 +125,10 @@ fun CartStateRow(
     status = RowStatus.Badge(kind),
     onClick = onClick,
     modifier = modifier,
-    data1Width = CartStateData1Width,
-    data2Width = CartStateData2Width,
-    data2Color = MaterialTheme.extendedColors.textSecondary,
-    showDivider = showDivider
+    style = StatusRowStyle(
+        data1Width = CartStateData1Width,
+        data2Width = CartStateData2Width,
+        data2Color = MaterialTheme.extendedColors.textSecondary,
+        showDivider = showDivider
+    )
 )

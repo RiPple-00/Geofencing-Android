@@ -57,19 +57,24 @@ private val PageBottomGap = 86.dp
 private val PaginationGap = 20.dp
 
 // Sector 페이지 본문(헤더/탭바 아래). 크롬은 HomeScreen이 담당. state는 밖에서 주입.
+// SectorPage 콜백 묶음. 라벨 탭 → 팝업(onHeatmapClick), 확대(⤢) → 줌 지도(onExpandMap),
+// 행 클릭(violation/disconnect/cart), 페이지 전환(onPageSelect).
+data class SectorPageActions(
+    val onHeatmapClick: () -> Unit = {},
+    val onExpandMap: () -> Unit = {},
+    val onViolationClick: (SectorViolationEntry) -> Unit = {},
+    val onDisconnectClick: (SectorDisconnectEntry) -> Unit = {},
+    val onCartClick: (CartStateEntry) -> Unit = {},
+    val onPageSelect: (Int) -> Unit = {}
+)
+
 @Composable
 fun SectorPage(
     state: SectorUiState,
     // 지도 배너 슬롯. HomeScreen이 전체화면 히트맵과 공유하는 지도를 주입한다(배너에 표시할 때만).
     bannerMap: @Composable () -> Unit,
     modifier: Modifier = Modifier,
-    // "Violation Heatmap" 라벨 탭 → 팝업. 확대(⤢) 버튼 → body 꽉 채우는 줌 지도.
-    onHeatmapClick: () -> Unit = {},
-    onExpandMap: () -> Unit = {},
-    onViolationClick: (SectorViolationEntry) -> Unit = {},
-    onDisconnectClick: (SectorDisconnectEntry) -> Unit = {},
-    onCartClick: (CartStateEntry) -> Unit = {},
-    onPageSelect: (Int) -> Unit = {}
+    actions: SectorPageActions = SectorPageActions()
 ) {
     // 페이지네이션 현재 페이지(로컬). totalPages는 All Cart List 수량에서 자동 계산.
     var currentPage by remember { mutableIntStateOf(1) }
@@ -86,8 +91,8 @@ fun SectorPage(
         // 지도 배너는 full-bleed. 지도(bannerMap)는 HomeScreen이 전체화면 히트맵과 공유해 주입한다.
         SectorMapBanner(
             map = bannerMap,
-            onLabelClick = onHeatmapClick,
-            onExpandClick = onExpandMap
+            onLabelClick = actions.onHeatmapClick,
+            onExpandClick = actions.onExpandMap
         )
 
         // 나머지 콘텐츠는 좌우 공통 여백 적용.
@@ -125,7 +130,7 @@ fun SectorPage(
                     ViolationRow(
                         cart = v.cart,
                         remaining = v.remaining,
-                        onClick = { onViolationClick(v) },
+                        onClick = { actions.onViolationClick(v) },
                         showDivider = i < state.violations.lastIndex
                     )
                 }
@@ -138,7 +143,7 @@ fun SectorPage(
                     DisconnectRow(
                         cart = d.cart,
                         elapsed = d.elapsed,
-                        onClick = { onDisconnectClick(d) },
+                        onClick = { actions.onDisconnectClick(d) },
                         showDivider = i < state.disconnects.lastIndex
                     )
                 }
@@ -156,7 +161,7 @@ fun SectorPage(
                         cart = c.cart,
                         drivingState = c.drivingState,
                         kind = c.kind,
-                        onClick = { onCartClick(c) },
+                        onClick = { actions.onCartClick(c) },
                         showDivider = i < pageCarts.lastIndex
                     )
                 }
@@ -168,7 +173,7 @@ fun SectorPage(
                 totalPages = totalPages,
                 onPageSelect = { page ->
                     currentPage = page
-                    onPageSelect(page)
+                    actions.onPageSelect(page)
                 },
                 modifier = Modifier.fillMaxWidth()
             )

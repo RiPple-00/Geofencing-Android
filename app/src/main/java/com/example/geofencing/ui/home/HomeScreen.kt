@@ -38,6 +38,7 @@ import com.example.geofencing.ui.map.MapCamera
 import com.example.geofencing.ui.map.HeatmapMaxZoom
 import com.example.geofencing.ui.map.ViolationHeatmapOverlay
 import com.example.geofencing.ui.sector.SectorPage
+import com.example.geofencing.ui.sector.SectorPageActions
 import com.example.geofencing.ui.sector.SectorUiState
 import com.example.geofencing.ui.theme.extendedColors
 import com.example.geofencing.ui.wholesector.WholeSectorPage
@@ -48,6 +49,16 @@ private const val APP_TITLE = "Geofence"
 private const val SectorMapGeofenceMarginDp = 45
 // 히트맵 지도에서 geofence 가장자리 최소 여백(dp) — FitGeofence padding. 배너(45)보다 좁아 더 크게 보임.
 private const val HeatmapGeofenceMarginDp = 15
+
+// 제스처(확대 지도)일 때만 줌 한계 적용, 아니면 null(지도 기본).
+private fun zoomIfGestures(gestures: Boolean, zoom: Float): Float? = if (gestures) zoom else null
+
+// 화면 진입 로그용 이름.
+private fun currentScreenName(cartOpen: Boolean, safeIndex: Int): String = when {
+    cartOpen -> "CartPage"
+    safeIndex == 0 -> "WholeSectorPage"
+    else -> "SectorPage"
+}
 
 // 탭 셸: AppTopBar + SectorTabRow(크롬) + body. 크롬은 항상 유지되고, body는:
 // - 드릴다운으로 열린 카트가 있으면 CartPage (뒤로가기로 닫음)
@@ -94,8 +105,8 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxSize(),
                 gesturesEnabled = gestures,
                 // 확대 지도만 15~19 줌 범위로 제한. 배너/팝업은 제스처가 없어 무관.
-                minZoom = if (gestures) HeatmapMinZoom else null,
-                maxZoom = if (gestures) HeatmapMaxZoom else null
+                minZoom = zoomIfGestures(gestures, HeatmapMinZoom),
+                maxZoom = zoomIfGestures(gestures, HeatmapMaxZoom)
             )
         }
     }
@@ -154,11 +165,7 @@ fun HomeScreen(
     }
 
     // 화면 진입 로그(어느 화면을 보고 있나).
-    val currentScreen = when {
-        openCartTarget != null -> "CartPage"
-        safeIndex == 0 -> "WholeSectorPage"
-        else -> "SectorPage"
-    }
+    val currentScreen = currentScreenName(openCartTarget != null, safeIndex)
     LaunchedEffect(currentScreen) { analytics.screen(currentScreen) }
 
     // 배너/확대/히트맵이 공유하는 지도 상태·핸들 묶음(파라미터 수 축소용).
@@ -344,12 +351,14 @@ private fun SectorTab(
                     map.movable(bannerContent, map.bannerCamera, false)
                 }
             },
-            onHeatmapClick = onHeatmapClick,
-            onExpandMap = onExpandMap,
-            // 카트 클릭(violation/disconnect/all cart) → 현재 섹터의 해당 카트로 드릴다운
-            onViolationClick = { onOpenCart(sectorName, it.cart, "sector_violation") },
-            onDisconnectClick = { onOpenCart(sectorName, it.cart, "sector_disconnect") },
-            onCartClick = { onOpenCart(sectorName, it.cart, "sector_cart") }
+            actions = SectorPageActions(
+                onHeatmapClick = onHeatmapClick,
+                onExpandMap = onExpandMap,
+                // 카트 클릭(violation/disconnect/all cart) → 현재 섹터의 해당 카트로 드릴다운
+                onViolationClick = { onOpenCart(sectorName, it.cart, "sector_violation") },
+                onDisconnectClick = { onOpenCart(sectorName, it.cart, "sector_disconnect") },
+                onCartClick = { onOpenCart(sectorName, it.cart, "sector_cart") }
+            )
         )
     }
 }
