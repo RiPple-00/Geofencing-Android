@@ -161,6 +161,16 @@ fun HomeScreen(
     }
     LaunchedEffect(currentScreen) { analytics.screen(currentScreen) }
 
+    // 배너/확대/히트맵이 공유하는 지도 상태·핸들 묶음(파라미터 수 축소용).
+    val sectorMap = SectorMap(
+        content = sectorMapContent,
+        inBanner = mapInBanner,
+        expanded = mapExpanded,
+        bannerCamera = bannerCamera,
+        heatmapCamera = heatmapCamera,
+        movable = movableMap
+    )
+
     Box(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -182,53 +192,54 @@ fun HomeScreen(
                 }
             )
 
-            HomeBody(
+            // body — 카트 상세 / Whole Sector / Sector 라우팅 + 확대(⤢) 줌 지도 오버레이.
+            Box(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth(),
-                showCart = openCartTarget != null,
-                safeIndex = safeIndex,
-                cartState = cartState,
-                wholeSectorState = wholeSectorState,
-                sectorState = sectorState,
-                sectorName = sectorName,
-                onCloseCart = { openCartTarget = null },
-                onOpenCart = openCart,
-                onOpenSectorTab = openSectorTab,
-                onCartRetry = {
-                    analytics.log(AnalyticsEvent.RetryClicked("Cart"))
-                    actions.onCartRetry()
-                },
-                onWholeRetry = {
-                    analytics.log(AnalyticsEvent.RetryClicked("WholeSector"))
-                    actions.onWholeSectorRetry()
-                },
-                onSectorRetry = {
-                    analytics.log(AnalyticsEvent.RetryClicked("Sector"))
-                    actions.onSectorRetry()
-                },
-                onHeatmapClick = {
-                    mapInBanner = false
-                    showHeatmap = true
-                },
-                onExpandMap = { mapExpanded = true },
-                onReduceMap = { mapExpanded = false },
-                mapInBanner = mapInBanner,
-                mapExpanded = mapExpanded,
-                sectorMapContent = sectorMapContent,
-                bannerCamera = bannerCamera,
-                heatmapCamera = heatmapCamera,
-                movableMap = movableMap
-            )
+                    .fillMaxWidth()
+            ) {
+                when {
+                    openCartTarget != null -> CartDetail(
+                        state = cartState,
+                        onRetry = {
+                            analytics.log(AnalyticsEvent.RetryClicked("Cart"))
+                            actions.onCartRetry()
+                        },
+                        onBack = { openCartTarget = null }
+                    )
+                    safeIndex == 0 -> WholeSectorTab(
+                        state = wholeSectorState,
+                        onRetry = {
+                            analytics.log(AnalyticsEvent.RetryClicked("WholeSector"))
+                            actions.onWholeSectorRetry()
+                        },
+                        onOpenCart = openCart,
+                        onOpenSectorTab = openSectorTab
+                    )
+                    else -> SectorTab(
+                        state = sectorState,
+                        onRetry = {
+                            analytics.log(AnalyticsEvent.RetryClicked("Sector"))
+                            actions.onSectorRetry()
+                        },
+                        sectorName = sectorName,
+                        onOpenCart = openCart,
+                        onHeatmapClick = {
+                            mapInBanner = false
+                            showHeatmap = true
+                        },
+                        onExpandMap = { mapExpanded = true },
+                        map = sectorMap
+                    )
+                }
+                ExpandedMapOverlay(map = sectorMap, onReduce = { mapExpanded = false })
+            }
         }
 
         // "Violation Heatmap" 라벨 탭 → 팝업(정적, 스크림). 앱 최상단 레이어(크롬 위)를 덮는다.
         HeatmapHost(
             visible = showHeatmap,
-            content = sectorMapContent,
-            mapInBanner = mapInBanner,
-            camera = heatmapCamera,
-            movableMap = movableMap,
+            map = sectorMap,
             onDismiss = { closingHeatmap = true }
         )
     }
@@ -257,63 +268,29 @@ private fun HomeChrome(
     }
 }
 
-// body: 카트 상세 / Whole Sector / Sector 라우팅 + 확대(⤢) 줌 지도 오버레이.
+// 배너/확대/히트맵이 공유하는 지도 상태·핸들. movable은 movableContentOf 지도(같은 인스턴스를 이동).
+private data class SectorMap(
+    val content: GeofenceMapContent?,
+    val inBanner: Boolean,
+    val expanded: Boolean,
+    val bannerCamera: MapCamera,
+    val heatmapCamera: MapCamera,
+    val movable: @Composable (GeofenceMapContent, MapCamera, Boolean) -> Unit
+)
+
+// 확대(⤢): body(탭바 아래)를 꽉 채우는 줌 지도. 핀치 줌/이동, 축소(⌟)/뒤로로 닫기.
 @Composable
-private fun HomeBody(
-    modifier: Modifier,
-    showCart: Boolean,
-    safeIndex: Int,
-    cartState: LoadState<CartUiState>,
-    wholeSectorState: LoadState<WholeSectorUiState>,
-    sectorState: LoadState<SectorUiState>,
-    sectorName: String,
-    onCloseCart: () -> Unit,
-    onOpenCart: (String, String, String) -> Unit,
-    onOpenSectorTab: (String) -> Unit,
-    onCartRetry: () -> Unit,
-    onWholeRetry: () -> Unit,
-    onSectorRetry: () -> Unit,
-    onHeatmapClick: () -> Unit,
-    onExpandMap: () -> Unit,
-    onReduceMap: () -> Unit,
-    mapInBanner: Boolean,
-    mapExpanded: Boolean,
-    sectorMapContent: GeofenceMapContent?,
-    bannerCamera: MapCamera,
-    heatmapCamera: MapCamera,
-    movableMap: @Composable (GeofenceMapContent, MapCamera, Boolean) -> Unit
-) {
-    Box(modifier = modifier) {
-        if (showCart) {
-            CartDetail(cartState, onCartRetry, onCloseCart)
-        } else if (safeIndex == 0) {
-            WholeSectorTab(wholeSectorState, onWholeRetry, onOpenCart, onOpenSectorTab)
-        } else {
-            SectorTab(
-                state = sectorState,
-                onRetry = onSectorRetry,
-                sectorName = sectorName,
-                onOpenCart = onOpenCart,
-                onHeatmapClick = onHeatmapClick,
-                onExpandMap = onExpandMap,
-                showBanner = mapInBanner && !mapExpanded,
-                bannerContent = sectorMapContent,
-                bannerCamera = bannerCamera,
-                movableMap = movableMap
-            )
-        }
-        // 확대(⤢): body(탭바 아래)를 꽉 채우는 줌 지도. 핀치 줌/이동, 축소(⌟)/뒤로로 닫기.
-        if (mapExpanded && sectorMapContent != null) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                movableMap(sectorMapContent, heatmapCamera, true)
-                MapReduceButton(
-                    onClick = onReduceMap,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(12.dp)
-                )
-            }
-        }
+private fun ExpandedMapOverlay(map: SectorMap, onReduce: () -> Unit) {
+    val content = map.content
+    if (!map.expanded || content == null) return
+    Box(modifier = Modifier.fillMaxSize()) {
+        map.movable(content, map.heatmapCamera, true)
+        MapReduceButton(
+            onClick = onReduce,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(12.dp)
+        )
     }
 }
 
@@ -355,18 +332,16 @@ private fun SectorTab(
     onOpenCart: (String, String, String) -> Unit,
     onHeatmapClick: () -> Unit,
     onExpandMap: () -> Unit,
-    showBanner: Boolean,
-    bannerContent: GeofenceMapContent?,
-    bannerCamera: MapCamera,
-    movableMap: @Composable (GeofenceMapContent, MapCamera, Boolean) -> Unit
+    map: SectorMap
 ) {
+    val bannerContent = map.content
     LoadStateContent(state = state, onRetry = onRetry) { sectorUi ->
         SectorPage(
             state = sectorUi,
             // 지도 배너는 공유 지도를 여기서 주입(팝업·body 줌 지도와 같은 인스턴스). 배너는 제스처 off.
             bannerMap = {
-                if (showBanner && bannerContent != null) {
-                    movableMap(bannerContent, bannerCamera, false)
+                if (map.inBanner && !map.expanded && bannerContent != null) {
+                    map.movable(bannerContent, map.bannerCamera, false)
                 }
             },
             onHeatmapClick = onHeatmapClick,
@@ -383,19 +358,17 @@ private fun SectorTab(
 @Composable
 private fun HeatmapHost(
     visible: Boolean,
-    content: GeofenceMapContent?,
-    mapInBanner: Boolean,
-    camera: MapCamera,
-    movableMap: @Composable (GeofenceMapContent, MapCamera, Boolean) -> Unit,
+    map: SectorMap,
     onDismiss: () -> Unit
 ) {
+    val content = map.content
     if (!visible || content == null) return
     ViolationHeatmapOverlay(
         onDismiss = onDismiss,
         // 팝업은 geofence 경계를 자세히 보기 위한 화면 → 카트 마커는 숨긴다(carts 제거).
         map = {
-            if (!mapInBanner) {
-                movableMap(content.copy(carts = emptyList()), camera, false)
+            if (!map.inBanner) {
+                map.movable(content.copy(carts = emptyList()), map.heatmapCamera, false)
             }
         }
     )

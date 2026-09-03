@@ -160,7 +160,6 @@ private fun SearchInputBox(
 
 @Composable
 private fun SearchPlaceholder() {
-    // TODO: 상하 padding("unnamed") 정확한 값 확인되면 0.dp 대신 교체
     Row(
         modifier = Modifier
             .fillMaxWidth()

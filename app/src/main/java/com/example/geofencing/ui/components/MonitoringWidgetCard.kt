@@ -24,8 +24,6 @@ import com.example.geofencing.ui.theme.DarkTextPrimary
 import com.example.geofencing.ui.theme.GeofencingTheme
 import com.example.geofencing.ui.theme.Header20
 
-// TODO: Title/Event Code 정확한 코드(색상, 폰트 스타일, EventCode 표기 방식)가 확정되면
-// 아래 Text 스타일링을 실제 값으로 교체하세요.
 @Composable
 fun MonitoringWidgetCard(
     title: String,

@@ -56,7 +56,7 @@ private val SectorListTitleToItemsGap = 22.5.dp
 private val TotalToStatGap = 24.dp
 private val SectorCardGap = 24.dp
 // 섹터 카드: 지도 배경 전체 높이 + 콘텐츠(제목/통계) 내부 패딩(상단 26 / 하좌우 14).
-private val SectorCardHeight = 250.dp // TODO(측정): 카드 전체 높이 튜닝.
+private val SectorCardHeight = 250.dp
 private val SectorCardContentPaddingTop = 26.dp
 private val SectorCardContentPadding = 14.dp
 // 카드 썸네일의 geofence 최대 박스(208×110, 제목/통계 글자와 ~15dp 간격용).

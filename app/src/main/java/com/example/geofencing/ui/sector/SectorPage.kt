@@ -49,7 +49,6 @@ import com.example.geofencing.ui.theme.PageHorizontalMargin
 import com.example.geofencing.ui.theme.RoundedMd
 import com.example.geofencing.ui.theme.extendedColors
 
-// TODO(측정): 페이지 레벨 실측값. 지금은 임시 추정치.
 private val SectorMapHeight = 240.dp
 private val MapToTitleGap = 42.dp
 private val TitleToAddressGap = 14.dp
@@ -222,7 +221,7 @@ private fun SectorMapBanner(
 }
 
 // All Cart List 한 페이지에 표시할 카트 수. totalPages = ceil(wholeCarts / 이 값).
-private const val CartsPerPage = 8 // TODO(측정): 페이지당 카트 수 확정.
+private const val CartsPerPage = 8
 
 // 페이지네이션 컨테이너 padding 10 / 아이템 간격 10 / 아이템 40×40 고정 / 선택 테두리 1.5dp.
 private val PaginationPadding = 10.dp

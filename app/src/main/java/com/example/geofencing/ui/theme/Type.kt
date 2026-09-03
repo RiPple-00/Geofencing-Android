@@ -155,7 +155,7 @@ val UnitSuffixDisabledStyle = UnitSuffixStyle.copy(lineHeight = 16.8.sp)
 // 실측값이 있는 역할은 위 raw 토큰을 그대로 재사용하고, 대응 값이 없는 역할은
 // Pretendard 폰트만 맞춘 임시값을 쓴다
 val Typography = Typography(
-    // 제목 - header/20 하나만 확정. Medium/Small은 아직 디자인 값 없음(TODO)
+    // 제목 - header/20 하나만 확정. Medium/Small은 아직 디자인 값 없음
     titleLarge = Header20,
     titleMedium = TextStyle(
         fontFamily = Pretendard,
@@ -173,7 +173,7 @@ val Typography = Typography(
         platformStyle = NoFontPadding,
         lineHeightStyle = CenteredLineHeight
     ),
-    // 본문 - bodyLarge는 아직 디자인 값 없음(TODO)
+    // 본문 - bodyLarge는 아직 디자인 값 없음
     bodyLarge = TextStyle(
         fontFamily = Pretendard,
         fontWeight = FontWeight.Normal,

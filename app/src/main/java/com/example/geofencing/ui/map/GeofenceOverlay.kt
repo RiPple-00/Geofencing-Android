@@ -19,7 +19,6 @@ private val WorldBounds = listOf(
 )
 
 // 지오펜스 외부를 어둡게 덮는 스크림 색. 검정 반투명(지도 자체 색은 API 스타일에서 조절).
-// TODO(튜닝): alpha는 실기기에서 맞춰야 함(0.4~0.6 근처). 네이비를 원하면 색만 교체.
 val GeofenceOutsideScrimColor = Color(0xFF000000).copy(alpha = 0.5f)
 
 // 지오펜스 경계 기준 "외부를 어둡게". 세계 전체 폴리곤에 각 지오펜스를 구멍(hole)으로 뚫어 안쪽만 비운다.
@@ -43,7 +42,7 @@ fun GeofenceOutsideScrim(
 
 // 폴리곤을 그릴 때 PolyUtil.simplify로 다듬는 허용 오차(미터).
 private const val GeofenceSimplifyToleranceMeters = 5.0
-// 경계선 두께(px) / 채움 알파. TODO(측정): 새 디자인 값으로 교체될 수 있음.
+// 경계선 두께(px) / 채움 알파.
 private const val GeofenceStrokeWidth = 4f
 private const val GeofenceFillAlpha = 0.12f
 

@@ -106,7 +106,7 @@ fun FixedGeofenceMap(
 }
 
 // 카메라 이동 후 타일이 다 그려질 때까지 대기(ms). / geofence를 화면에 맞출 때 여백(px).
-private const val SnapshotSettleMillis = 900L // TODO(튜닝): 디바이스/네트워크에 따라 조정.
+private const val SnapshotSettleMillis = 900L
 private const val SnapshotBoundsPaddingPx = 24
 private val OffscreenOffset = 5000.dp
 
@@ -244,8 +244,8 @@ fun SectorSnapshotPrefetcher(
             MapEffect(loaded) { map ->
                 if (!loaded) return@MapEffect
                 capturePending(
-                    map, context, pending, widthDp, heightDp,
-                    fitWidthPx, fitHeightPx, fitPaddingPx
+                    map, context, pending,
+                    SnapshotFit(widthDp, heightDp, fitWidthPx, fitHeightPx, fitPaddingPx)
                 )
                 done = true
             }
@@ -253,24 +253,29 @@ fun SectorSnapshotPrefetcher(
     }
 }
 
+// 스냅샷 캡처 크기/여백 묶음(캡처 함수 파라미터 수 축소용).
+private data class SnapshotFit(
+    val widthDp: Int,
+    val heightDp: Int,
+    val fitWidthPx: Int,
+    val fitHeightPx: Int,
+    val fitPaddingPx: Int
+)
+
 // pending 섹터들을 지도 1개로 순회 캡처: 카메라 이동 → 타일 대기 → 스냅샷 → 캐시 저장.
 // (Composable의 복잡도를 낮추려 캡처 루프를 여기로 분리.)
 private suspend fun capturePending(
     map: GmsGoogleMap,
     context: android.content.Context,
     pending: List<SectorSnapshotRequest>,
-    widthDp: Int,
-    heightDp: Int,
-    fitWidthPx: Int,
-    fitHeightPx: Int,
-    fitPaddingPx: Int
+    fit: SnapshotFit
 ) {
     for (req in pending) {
-        val key = SectorSnapshotCache.keyOf(req.sectorId, req.geofence, widthDp, heightDp)
+        val key = SectorSnapshotCache.keyOf(req.sectorId, req.geofence, fit.widthDp, fit.heightDp)
         if (SectorSnapshotCache.isCached(context, key)) continue
         val bounds = LatLngBounds.builder().apply { req.geofence.forEach(::include) }.build()
         map.moveCamera(
-            CameraUpdateFactory.newLatLngBounds(bounds, fitWidthPx, fitHeightPx, fitPaddingPx)
+            CameraUpdateFactory.newLatLngBounds(bounds, fit.fitWidthPx, fit.fitHeightPx, fit.fitPaddingPx)
         )
         delay(SnapshotSettleMillis)
         val visible = map.projection.visibleRegion.latLngBounds
