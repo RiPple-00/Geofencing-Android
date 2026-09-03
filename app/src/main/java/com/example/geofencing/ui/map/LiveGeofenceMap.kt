@@ -28,6 +28,7 @@ import com.google.maps.android.compose.MapEffect
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.MapsComposeExperimentalApi
+import com.google.maps.android.compose.CameraPositionState
 import com.google.maps.android.compose.rememberCameraPositionState
 import kotlin.math.abs
 import kotlin.math.log2
@@ -54,7 +55,6 @@ fun LiveGeofenceMap(
     mapContent: @Composable @GoogleMapComposable () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val density = LocalDensity.current
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(initialTarget(content, camera), initialZoom(camera))
     }
@@ -91,55 +91,8 @@ fun LiveGeofenceMap(
 
     // 카메라 제어: FollowCart는 카트 위치가 갱신될 때마다 재중심(실시간 추적), FitGeofence는 bounds에 맞춤.
     when (camera) {
-        is MapCamera.FollowCart -> {
-            val target = content.carts.find { it.id == camera.cartId }?.position
-            // 첫 진입은 즉시(move) 해당 좌표로 — 애니메이션 없이 바로 로딩. 이후 위치 갱신만 부드럽게 추적.
-            var firstFix by remember { mutableStateOf(true) }
-            LaunchedEffect(target, camera.zoom) {
-                if (target != null) {
-                    val update = CameraUpdateFactory.newLatLngZoom(target, camera.zoom)
-                    if (firstFix) {
-                        cameraPositionState.move(update)
-                        firstFix = false
-                    } else {
-                        cameraPositionState.animate(update, durationMs = FollowAnimMillis)
-                    }
-                }
-            }
-            // 확대/축소(제스처) 후 카메라가 멈추면(idle) 중심이 어긋났을 때 카트로 재중심(줌은 유지).
-            LaunchedEffect(target) {
-                if (target == null) return@LaunchedEffect
-                snapshotFlow { cameraPositionState.isMoving }.collect { moving ->
-                    if (!moving) {
-                        val c = cameraPositionState.position.target
-                        val off = abs(c.latitude - target.latitude) + abs(c.longitude - target.longitude)
-                        if (off > CenterEpsilon) {
-                            cameraPositionState.move(
-                                CameraUpdateFactory.newLatLngZoom(target, cameraPositionState.position.zoom)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-        is MapCamera.FitGeofence -> {
-            // 애니메이션 없이 즉시 geofence 전체에 맞춤(열 때 "화면 이동" 방지). map!=null이면 뷰 크기 확보됨.
-            // zoomFactor가 1이 아니면 맞춤 후 배율만큼 추가 확대(줌 레벨은 로그 스케일이라 log2).
-            val fitPaddingPx = camera.paddingDp?.let { with(density) { it.dp.roundToPx() } } ?: FitPaddingPx
-            // mapSize를 키에 포함 → 컨테이너 크기가 바뀌면(배너→히트맵 오버레이) 새 크기로 다시 fit.
-            LaunchedEffect(content.geofence, map, camera.zoomFactor, fitPaddingPx, mapSize) {
-                if (map != null && content.geofence.size >= 3 && mapSize.width > 0 && mapSize.height > 0) {
-                    cameraPositionState.move(
-                        CameraUpdateFactory.newLatLngBounds(
-                            boundsOf(content.geofence), mapSize.width, mapSize.height, fitPaddingPx
-                        )
-                    )
-                    if (camera.zoomFactor != 1f) {
-                        cameraPositionState.move(CameraUpdateFactory.zoomBy(log2(camera.zoomFactor)))
-                    }
-                }
-            }
-        }
+        is MapCamera.FollowCart -> FollowCartCamera(cameraPositionState, content, camera)
+        is MapCamera.FitGeofence -> FitGeofenceCamera(cameraPositionState, content, camera, map, mapSize)
     }
 
     Box(modifier = modifier.onSizeChanged { mapSize = it }) {
@@ -165,6 +118,73 @@ fun LiveGeofenceMap(
                 }
             }
             GeofenceMapOverlay(content = content, projector = projector, modifier = Modifier.fillMaxSize())
+        }
+    }
+}
+
+// FollowCart: 첫 진입은 즉시 이동(애니 없음), 이후 위치 갱신은 부드럽게 추적하고,
+// 제스처 후 idle 시 중심이 어긋났으면 카트로 재중심(줌은 유지).
+@Composable
+private fun FollowCartCamera(
+    cameraPositionState: CameraPositionState,
+    content: GeofenceMapContent,
+    camera: MapCamera.FollowCart
+) {
+    val target = content.carts.find { it.id == camera.cartId }?.position
+    var firstFix by remember { mutableStateOf(true) }
+    LaunchedEffect(target, camera.zoom) {
+        if (target == null) return@LaunchedEffect
+        val update = CameraUpdateFactory.newLatLngZoom(target, camera.zoom)
+        if (firstFix) {
+            cameraPositionState.move(update)
+            firstFix = false
+        } else {
+            cameraPositionState.animate(update, durationMs = FollowAnimMillis)
+        }
+    }
+    LaunchedEffect(target) {
+        if (target == null) return@LaunchedEffect
+        snapshotFlow { cameraPositionState.isMoving }.collect { moving ->
+            if (!moving) recenterIfDrifted(cameraPositionState, target)
+        }
+    }
+}
+
+// 카메라가 target에서 CenterEpsilon 넘게 벗어났으면 줌은 유지한 채 재중심.
+private fun recenterIfDrifted(cameraPositionState: CameraPositionState, target: LatLng) {
+    val c = cameraPositionState.position.target
+    val off = abs(c.latitude - target.latitude) + abs(c.longitude - target.longitude)
+    if (off > CenterEpsilon) {
+        cameraPositionState.move(
+            CameraUpdateFactory.newLatLngZoom(target, cameraPositionState.position.zoom)
+        )
+    }
+}
+
+// FitGeofence: 애니 없이 즉시 geofence 전체에 맞춤(열 때 "화면 이동" 방지). map!=null이면 뷰 크기 확보됨.
+// zoomFactor가 1이 아니면 맞춤 후 배율만큼 추가 확대(줌 레벨은 로그 스케일이라 log2).
+// mapSize를 키에 포함 → 컨테이너 크기가 바뀌면(배너→히트맵 오버레이) 새 크기로 다시 fit.
+@Composable
+private fun FitGeofenceCamera(
+    cameraPositionState: CameraPositionState,
+    content: GeofenceMapContent,
+    camera: MapCamera.FitGeofence,
+    map: GmsGoogleMap?,
+    mapSize: IntSize
+) {
+    val density = LocalDensity.current
+    val fitPaddingPx = camera.paddingDp?.let { with(density) { it.dp.roundToPx() } } ?: FitPaddingPx
+    LaunchedEffect(content.geofence, map, camera.zoomFactor, fitPaddingPx, mapSize) {
+        if (map == null || content.geofence.size < 3 || mapSize.width <= 0 || mapSize.height <= 0) {
+            return@LaunchedEffect
+        }
+        cameraPositionState.move(
+            CameraUpdateFactory.newLatLngBounds(
+                boundsOf(content.geofence), mapSize.width, mapSize.height, fitPaddingPx
+            )
+        )
+        if (camera.zoomFactor != 1f) {
+            cameraPositionState.move(CameraUpdateFactory.zoomBy(log2(camera.zoomFactor)))
         }
     }
 }
