@@ -62,6 +62,15 @@ sealed interface RowStatus {
 // 골격(gap 없음): [data1(고정폭)] [data2(고정폭)] [RowStatus(남은 공간, 좌측정렬)] [arrow]. 각 컬럼은 내부 좌우 8dp.
 // data1/data2 폭은 사용처마다 다르므로 파라미터. 확정값: Violation=100/78, Disconnect=100/88, All Cart List=85/90.
 // data2가 null이어도 data2Width는 유지(자리 예약). 표시 조건은 호출부(페이지)가 데이터로 판단.
+// 행 스타일 묶음. data1/data2 폭은 사용처마다 다르므로 파라미터. data2 색은 기본값 null →
+// border/strong(흐림); 의미 있는 값(주행상태)은 호출부에서 text/secondary로 올려 밝게 유지한다.
+data class StatusRowStyle(
+    val data1Width: Dp = 100.dp,
+    val data2Width: Dp = 78.dp,
+    val data2Color: Color? = null,
+    val showDivider: Boolean = true
+)
+
 @Composable
 fun StatusListRow(
     data1: String,
@@ -69,14 +78,10 @@ fun StatusListRow(
     status: RowStatus,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    data1Width: Dp = 100.dp,
-    data2Width: Dp = 78.dp,
-    // data2 색은 사용처마다 다름: 보조 라벨(섹터)은 기본값 border/strong(흐림), 의미 있는 값(주행상태)은
-    // 호출부에서 text/secondary로 올려 밝게 유지한다.
-    data2Color: Color = MaterialTheme.extendedColors.borderStrong,
-    showDivider: Boolean = true
+    style: StatusRowStyle = StatusRowStyle()
 ) {
     val colors = MaterialTheme.extendedColors
+    val data2Color = style.data2Color ?: colors.borderStrong
     // data1/data2 폭은 360dp 기준값이라, 화면폭 대비 배율로 스케일해 반응형으로 만든다(360에선 1.0).
     // 시간(status)은 weight로 남는 폭을 흡수하고, arrow·패딩은 고정.
     val widthScale = LocalConfiguration.current.screenWidthDp / 360f
@@ -92,7 +97,7 @@ fun StatusListRow(
             Text(
                 text = data1,
                 modifier = Modifier
-                    .width(data1Width * widthScale)
+                    .width(style.data1Width * widthScale)
                     .padding(horizontal = ColumnHorizontalPadding),
                 style = Label14,
                 color = colors.textSecondary,
@@ -104,7 +109,7 @@ fun StatusListRow(
             Text(
                 text = data2.orEmpty(),
                 modifier = Modifier
-                    .width(data2Width * widthScale)
+                    .width(style.data2Width * widthScale)
                     .padding(horizontal = ColumnHorizontalPadding),
                 style = Body14,
                 color = data2Color,
@@ -132,7 +137,7 @@ fun StatusListRow(
             )
         }
 
-        if (showDivider) {
+        if (style.showDivider) {
             HorizontalDivider(
                 modifier = Modifier.padding(top = DividerPaddingTop, bottom = DividerPaddingBottom),
                 thickness = 1.dp,
@@ -190,16 +195,16 @@ private fun StatusListRowPreview() {
             // All Cart List (85/90)
             StatusListRow(
                 "Cart #1", "Driving", RowStatus.Badge(StatusKind.Compliance), {},
-                data1Width = 85.dp, data2Width = 90.dp
+                style = StatusRowStyle(data1Width = 85.dp, data2Width = 90.dp)
             )
             StatusListRow(
                 "Cart #4", "Driving", RowStatus.Badge(StatusKind.Disconnect), {},
-                data1Width = 85.dp, data2Width = 90.dp
+                style = StatusRowStyle(data1Width = 85.dp, data2Width = 90.dp)
             )
             // Disconnect (100/88), data2 없는 단일 행
             StatusListRow(
                 "Cart #2", null, RowStatus.Elapsed("1 Days ago"), {},
-                data2Width = 88.dp, showDivider = false
+                style = StatusRowStyle(data2Width = 88.dp, showDivider = false)
             )
         }
     }

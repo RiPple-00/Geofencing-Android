@@ -1,8 +1,8 @@
 package com.example.geofencing.ui.analytics
 
 import android.util.Log
-import dagger.Binds
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Inject
@@ -30,7 +30,7 @@ class DebugAnalyticsLogger @Inject constructor() : AnalyticsLogger {
 
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class AnalyticsModule {
-    @Binds
-    abstract fun bindAnalyticsLogger(impl: DebugAnalyticsLogger): AnalyticsLogger
+object AnalyticsModule {
+    @Provides
+    fun provideAnalyticsLogger(impl: DebugAnalyticsLogger): AnalyticsLogger = impl
 }

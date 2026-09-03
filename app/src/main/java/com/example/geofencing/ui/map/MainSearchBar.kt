@@ -51,6 +51,12 @@ import dev.chrisbanes.haze.hazeEffect
 // 피그마 list_root/input/hamburger padding 값 반영, width는 100%로 설정.
 // 블러 배경(list_root)은 상태바(sys_aos) 뒤까지 이어지도록 statusBarsPadding 없이 최상단부터 그리고,
 // 실제 입력/햄버거 콘텐츠에만 statusBarsPadding을 줘서 상태바 아이콘과 안 겹치게 한다.
+// 검색 결과 목록 + 클릭 핸들러 묶음.
+data class SearchResultList(
+    val items: List<SearchResultItem> = emptyList(),
+    val onClick: (SearchResultItem) -> Unit = {}
+)
+
 @Composable
 fun MainSearchBar(
     query: String,
@@ -59,8 +65,7 @@ fun MainSearchBar(
     hazeState: HazeState,
     modifier: Modifier = Modifier,
     onFocusChanged: (Boolean) -> Unit = {},
-    searchResults: List<SearchResultItem> = emptyList(),
-    onResultClick: (SearchResultItem) -> Unit = {}
+    results: SearchResultList = SearchResultList()
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
@@ -110,10 +115,10 @@ fun MainSearchBar(
             }
         }
 
-        if (isFocused && searchResults.isNotEmpty()) {
+        if (isFocused && results.items.isNotEmpty()) {
             SearchList(
-                results = searchResults,
-                onResultClick = onResultClick,
+                results = results.items,
+                onResultClick = results.onClick,
                 hazeState = hazeState
             )
         }
